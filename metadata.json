@@ -1,0 +1,6 @@
+{
+  "name": "Aplikasi Klinik Hewan (VetCare Pro)",
+  "description": "Sistem Manajemen Klinik Hewan lengkap dengan 4 Role, Rekam Medis SOAP, Kasir Thermal 58/80mm, Rawat Inap & Monitoring, Stok Obat & Racikan, Janji Temu, Notifikasi WA, dan Laporan Keuangan.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -24,6 +24,8 @@ interface RawatJalanViewProps {
   onNavigateToSOAP?: (pendaftaran?: Pendaftaran) => void;
   onNavigateToKasir?: (rekamMedisId?: string) => void;
   onSaveRekamMedis?: (rm: RekamMedis) => void | Promise<void>;
+  onCancelRekamMedis?: (rmId: string, alasan: string, user: string) => void | Promise<void>;
+  activeUserName?: string;
 }
 
 export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
@@ -38,6 +40,8 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
   onNavigateToSOAP,
   onNavigateToKasir,
   onSaveRekamMedis,
+  onCancelRekamMedis,
+  activeUserName,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'today' | 'control_needed' | 'with_recipe'>('all');
@@ -46,6 +50,9 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
   const [selectedRmForDetail, setSelectedRmForDetail] = useState<RekamMedis | null>(null);
   const [selectedRmForEtiket, setSelectedRmForEtiket] = useState<RekamMedis | null>(null);
   const [showAddOutpatientModal, setShowAddOutpatientModal] = useState(false);
+  // Cancel modal for Rawat Jalan (replace prompt-based flow)
+  const [showCancelRmModal, setShowCancelRmModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   // Quick Add Outpatient Form State
   const [formPasienId, setFormPasienId] = useState(pasienList[0]?.id || '');
@@ -647,6 +654,18 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
 
             {/* Modal Actions */}
             <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
+              {typeof onCancelRekamMedis === 'function' && (
+                <button
+                  onClick={() => {
+                    setCancelReason('');
+                    setShowCancelRmModal(true);
+                  }}
+                  className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs cursor-pointer transition-colors"
+                >
+                  Batalkan Rekam Medis
+                </button>
+              )}
+
               <button
                 onClick={() => setSelectedRmForDetail(null)}
                 className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer transition-colors"
@@ -654,6 +673,52 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
                 Tutup
               </button>
             </div>
+
+            {/* Cancel Modal for Rawat Jalan (replaces prompt) */}
+            {showCancelRmModal && selectedRmForDetail && (
+              <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">Batalkan Rekam Medis</h3>
+                      <p className="text-sm text-slate-600">Masukkan alasan pembatalan untuk rekam medis <strong>{selectedRmForDetail.noRM}</strong>:</p>
+                    </div>
+                    <button onClick={() => { setShowCancelRmModal(false); setCancelReason(''); }} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 cursor-pointer">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    placeholder="Tuliskan alasan pembatalan..."
+                    className="w-full p-3 border border-slate-200 rounded-xl text-sm resize-none"
+                    rows={4}
+                  />
+
+                  <div className="flex items-center justify-end space-x-2">
+                    <button
+                      onClick={() => { setShowCancelRmModal(false); setCancelReason(''); }}
+                      className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!cancelReason) return;
+                        onCancelRekamMedis?.(selectedRmForDetail.id, cancelReason, activeUserName || 'system');
+                        setShowCancelRmModal(false);
+                        setSelectedRmForDetail(null);
+                        setCancelReason('');
+                      }}
+                      className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-sm"
+                    >
+                      Konfirmasi Batalkan
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

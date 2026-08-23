@@ -224,6 +224,8 @@ export interface RekamMedis {
   
   totalBiaya: number;
   statusPembayaran: 'Belum Lunas' | 'Lunas' | 'Dibatalkan';
+  alasanPembatalan?: string;
+  dibatalkanOleh?: string;
 }
 
 export interface MonitoringLog {
@@ -266,7 +268,9 @@ export interface RawatInap {
   dokterPenanggungJawabId: string;
   diagnosaInap: string;
   tarifPerHari: number;
-  status: 'Aktif' | 'Selesai / Pulang' | 'Rujukan' | 'Meninggal';
+  status: 'Aktif' | 'Selesai / Pulang' | 'Rujukan' | 'Meninggal' | 'Dibatalkan';
+  alasanPembatalan?: string;
+  dibatalkanOleh?: string;
   monitoringLogs: MonitoringLog[];
   // Ringkasan (backwards compatible)
   pemberianObat?: string; // ringkasan pemberian obat / catatan obat yang diberikan selama inap
@@ -365,7 +369,9 @@ export interface PembelianBarang {
     expiredDate?: string;
   }[];
   grandTotal: number;
-  status: 'Selesai' | 'Draft';
+  status: 'Selesai' | 'Draft' | 'Dibatalkan';
+  alasanPembatalan?: string;
+  dibatalkanOleh?: string;
 }
 
 export type PembelianSupplier = PembelianBarang;

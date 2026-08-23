@@ -8,6 +8,8 @@ interface PembelianViewProps {
   supplierList: Supplier[];
   barangList: Barang[];
   onSavePembelian: (po: PembelianSupplier) => void | Promise<void>;
+  onCancelPembelian?: (poId: string, alasan: string, user: string) => void | Promise<void>;
+  activeUserName?: string;
 }
 
 export const PembelianView: React.FC<PembelianViewProps> = ({
@@ -15,6 +17,8 @@ export const PembelianView: React.FC<PembelianViewProps> = ({
   supplierList = [],
   barangList = [],
   onSavePembelian,
+  onCancelPembelian,
+  activeUserName,
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [supplierId, setSupplierId] = useState(supplierList[0]?.id || '');
@@ -42,6 +46,24 @@ export const PembelianView: React.FC<PembelianViewProps> = ({
     setItems([]);
     setBarangSearch('');
     setShowModal(true);
+  };
+
+  // Cancel modal state
+  const [showCancelPoId, setShowCancelPoId] = useState<string | null>(null);
+  const [cancelPoReason, setCancelPoReason] = useState('');
+  const [cancelPoRevertStock, setCancelPoRevertStock] = useState(true);
+
+  const openCancelPoModal = (poId: string) => {
+    setShowCancelPoId(poId);
+    setCancelPoReason('');
+    setCancelPoRevertStock(true);
+  };
+
+  const confirmCancelPo = async () => {
+    if (!showCancelPoId) return;
+    if (typeof onCancelPembelian !== 'function') return;
+    await onCancelPembelian(showCancelPoId, cancelPoReason || 'Tidak ada keterangan', activeUserName || 'system', cancelPoRevertStock);
+    setShowCancelPoId(null);
   };
 
   const addItem = () => {
@@ -153,6 +175,29 @@ export const PembelianView: React.FC<PembelianViewProps> = ({
         </div>
       )}
 
+      {/* Cancel PO Modal */}
+      {showCancelPoId && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h4 className="font-bold text-slate-900 mb-2">Batalkan PO / Faktur</h4>
+            <p className="text-xs text-slate-500 mb-3">Masukkan alasan pembatalan dan pilih apakah penerimaan stok harus dibatalkan.</p>
+            <div className="space-y-2">
+              <label className="block text-xs font-semibold">Alasan Pembatalan</label>
+              <textarea value={cancelPoReason} onChange={(e) => setCancelPoReason(e.target.value)} rows={3} className="w-full border rounded px-2 py-1 text-xs" />
+              <div className="flex items-center space-x-2">
+                <input id="revertPoStock" type="checkbox" checked={cancelPoRevertStock} onChange={(e) => setCancelPoRevertStock(e.target.checked)} />
+                <label htmlFor="revertPoStock" className="text-xs">Batalkan penambahan stok yang dilakukan saat PO selesai</label>
+              </div>
+            </div>
+
+            <div className="mt-4 flex justify-end space-x-2">
+              <button onClick={() => setShowCancelPoId(null)} className="px-3 py-1.5 bg-slate-100 rounded text-xs font-bold">Batal</button>
+              <button onClick={confirmCancelPo} className="px-3 py-1.5 bg-rose-600 text-white rounded text-xs font-bold">Konfirmasi Batalkan</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-600">
@@ -163,6 +208,7 @@ export const PembelianView: React.FC<PembelianViewProps> = ({
                 <th className="p-4">Item Masuk</th>
                 <th className="p-4">Total Nominal</th>
                 <th className="p-4">Status</th>
+              <th className="p-4">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -190,6 +236,18 @@ export const PembelianView: React.FC<PembelianViewProps> = ({
                         <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-bold">
                           {p.status}
                         </span>
+                      </td>
+                      <td className="p-4">
+                        {typeof onCancelPembelian === 'function' && p.status !== 'Dibatalkan' ? (
+                          <button
+                            onClick={() => openCancelPoModal(p.id)}
+                            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold"
+                          >
+                            Batalkan
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-slate-400">-</span>
+                        )}
                       </td>
                     </tr>
                   );

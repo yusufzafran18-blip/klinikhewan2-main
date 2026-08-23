@@ -523,6 +523,65 @@ export function App() {
     storageService.saveTransaksiList(updated);
   };
 
+  // Cancellation handlers
+  const handleCancelRawatInap = async (inapId: string, alasan: string, user: string, revertStock: boolean = true) => {
+    const target = rawatInapList.find((r) => r.id === inapId);
+    if (!target) return;
+
+    // Restore inventory for obat & alkes used during inap only if requested
+    if (revertStock && ((target.pemberianObatList && target.pemberianObatList.length > 0) || (target.penggunaanAlkesList && target.penggunaanAlkesList.length > 0))) {
+      const updatedBarang = [...barangList];
+      (target.pemberianObatList || []).forEach((it) => {
+        const idx = updatedBarang.findIndex((b) => b.id === it.barangId || b.namaBarang === it.namaBarang);
+        if (idx >= 0) {
+          updatedBarang[idx] = { ...updatedBarang[idx], stokCurrent: (updatedBarang[idx].stokCurrent || 0) + (it.jumlah || 0) };
+        }
+      });
+      (target.penggunaanAlkesList || []).forEach((it) => {
+        const idx = updatedBarang.findIndex((b) => b.id === it.id || b.namaBarang === it.namaAlkes);
+        if (idx >= 0) {
+          updatedBarang[idx] = { ...updatedBarang[idx], stokCurrent: (updatedBarang[idx].stokCurrent || 0) + (it.jumlah || 0) };
+        }
+      });
+      setBarangList(updatedBarang);
+      await storageService.saveBarangList(updatedBarang);
+    }
+
+    const updatedInap = rawatInapList.map((r) => r.id === inapId ? { ...r, status: 'Dibatalkan' as const, alasanPembatalan: alasan, dibatalkanOleh: user } : r);
+    setRawatInapList(updatedInap);
+    await storageService.saveRawatInapList(updatedInap);
+  };
+
+  const handleCancelRekamMedis = async (rmId: string, alasan: string, user: string) => {
+    const exists = rekamMedisList.some((rm) => rm.id === rmId);
+    if (!exists) return;
+    const updated = rekamMedisList.map((rm) => rm.id === rmId ? { ...rm, alasanPembatalan: alasan, dibatalkanOleh: user, statusPembayaran: 'Dibatalkan' as const } : rm);
+    setRekamMedisList(updated);
+    await storageService.saveRekamMedisList(updated);
+  };
+
+  const handleCancelPembelian = async (poId: string, alasan: string, user: string, revertStock: boolean = true) => {
+    const target = pembelianList.find((p) => p.id === poId);
+    if (!target) return;
+
+    // If the purchase already added stock, revert it only when requested
+    if (revertStock && target.status === 'Selesai') {
+      const updatedBarang = [...barangList];
+      (target.items || []).forEach((it) => {
+        const idx = updatedBarang.findIndex((b) => b.id === it.barangId || b.namaBarang === it.namaBarang);
+        if (idx >= 0) {
+          updatedBarang[idx] = { ...updatedBarang[idx], stokCurrent: Math.max(0, (updatedBarang[idx].stokCurrent || 0) - (it.jumlah || 0)) };
+        }
+      });
+      setBarangList(updatedBarang);
+      await storageService.saveBarangList(updatedBarang);
+    }
+
+    const updatedPo = pembelianList.map((p) => p.id === poId ? { ...p, status: 'Dibatalkan' as const, alasanPembatalan: alasan, dibatalkanOleh: user } : p);
+    setPembelianList(updatedPo);
+    await storageService.savePembelianList(updatedPo);
+  };
+
   // Handlers for Barang & Inventory
   const handleSaveBarang = async (b: Barang) => {
     const exists = barangList.some((item) => item.id === b.id);
@@ -801,6 +860,8 @@ export function App() {
                       setActiveTab('kasir');
                     }}
                     onSaveRekamMedis={handleSaveRekamMedis}
+                  onCancelRekamMedis={handleCancelRekamMedis}
+                  activeUserName={activeUser?.nama}
                   />
                 )}
 
@@ -812,10 +873,14 @@ export function App() {
                     klinik={klinik}
                     rekamMedisList={rekamMedisList}
                     transaksiList={transaksiList}
+                    barangList={barangList}
+                    tindakanList={tindakanList}
                     onSaveRawatInap={handleSaveRawatInap}
                     onAddLogMonitoring={handleAddLogMonitoring}
                     onUseInventory={handleUseInventory}
                     onCheckoutInap={handleCheckoutInap}
+                  onCancelRawatInap={handleCancelRawatInap}
+                  activeUserName={activeUser?.nama}
                   />
                 )}
 
@@ -886,6 +951,8 @@ export function App() {
                       setPembelianList(updated);
                       if (shouldAddStock) setBarangList(updatedBarang);
                     }}
+                  onCancelPembelian={handleCancelPembelian}
+                  activeUserName={activeUser?.nama}
                   />
                 )}
 

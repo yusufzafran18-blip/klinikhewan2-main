@@ -25,6 +25,7 @@ interface RawatJalanViewProps {
   onNavigateToKasir?: (rekamMedisId?: string) => void;
   onSaveRekamMedis?: (rm: RekamMedis) => void | Promise<void>;
   onCancelRekamMedis?: (rmId: string, alasan: string, user: string) => void | Promise<void>;
+  onDeleteRekamMedis?: (rmId: string) => void | Promise<void>;
   activeUserName?: string;
 }
 
@@ -41,6 +42,7 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
   onNavigateToKasir,
   onSaveRekamMedis,
   onCancelRekamMedis,
+  onDeleteRekamMedis,
   activeUserName,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,6 +55,8 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
   // Cancel modal for Rawat Jalan (replace prompt-based flow)
   const [showCancelRmModal, setShowCancelRmModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  // Delete modal state for Rawat Jalan
+  const [showDeleteRmModal, setShowDeleteRmModal] = useState(false);
 
   // Quick Add Outpatient Form State
   const [formPasienId, setFormPasienId] = useState(pasienList[0]?.id || '');
@@ -542,6 +546,16 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
                         <ChevronRight className="w-3.5 h-3.5" />
                       </button>
                     )}
+
+                    {typeof onDeleteRekamMedis === 'function' && (
+                      <button
+                        onClick={() => { setSelectedRmForDetail(rm); setShowDeleteRmModal(true); }}
+                        title="Hapus rekam medis rawat jalan"
+                        className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs shadow-xs cursor-pointer transition-colors ml-2"
+                      >
+                        Hapus
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -719,6 +733,42 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Modal for Rawat Jalan (placed near detail modal) */}
+      {showDeleteRmModal && selectedRmForDetail && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Hapus Rekam Medis</h3>
+                <p className="text-sm text-slate-600">Anda akan menghapus rekam medis <strong>{selectedRmForDetail.noRM}</strong>. Tindakan ini tidak dapat dibatalkan. Lanjutkan?</p>
+              </div>
+              <button onClick={() => { setShowDeleteRmModal(false); }} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 cursor-pointer">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2">
+              <button
+                onClick={() => { setShowDeleteRmModal(false); }}
+                className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm"
+              >
+                Batal
+              </button>
+              <button
+                onClick={async () => {
+                  await onDeleteRekamMedis?.(selectedRmForDetail.id);
+                  setShowDeleteRmModal(false);
+                  setSelectedRmForDetail(null);
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm"
+              >
+                Hapus Permanen
+              </button>
+            </div>
           </div>
         </div>
       )}

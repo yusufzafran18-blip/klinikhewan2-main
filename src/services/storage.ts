@@ -934,14 +934,41 @@ export const restoreFromJSON = async (file: File, onSuccess: () => void) => {
 storageService.resetDatabaseKeepUsers = async function(): Promise<void> {
   // Only clear operational data. Users/passwords, doctors, all master data,
   // suppliers, clinic profile, settings, RBAC and WhatsApp configuration stay intact.
-  await this.savePendaftaran([]);
-  await this.saveRekamMedis([]);
-  await this.saveRawatInap([]);
-  await this.saveJanjiTemu([]);
-  await this.saveVaksinasi([]);
-  await this.saveTransaksi([]);
-  await this.savePembelian([]);
-  await this.saveFeedback([]);
-  await this.savePasien([]);
-  await this.saveWhatsAppLogs([]);
+  // Use a resilient approach: update the in-memory cache synchronously so the UI
+  // immediately reflects an empty database, and attempt SQL persistence but don't
+  // fail the whole operation if the API is unavailable.
+  try {
+    // Clear cache entries directly (avoid failing if API is down)
+    cacheManager.set('pendaftaran', []);
+    cacheManager.set('rekam_medis', []);
+    cacheManager.set('rawat_inap', []);
+    cacheManager.set('janji_temu', []);
+    cacheManager.set('vaksinasi', []);
+    cacheManager.set('transaksi', []);
+    cacheManager.set('pembelian', []);
+    cacheManager.set('feedback', []);
+    cacheManager.set('pasien', []);
+    cacheManager.set('wa_logs', []);
+
+    // Notify listeners so UI updates immediately
+    notifyListeners();
+  } catch (cacheErr) {
+    console.error('Error clearing in-memory cache during reset:', cacheErr);
+  }
+
+  // Try to persist to backend; failures are logged but do not throw to caller
+  const persistCalls = [
+    this.savePendaftaran([]).catch((e: any) => { console.warn('Persist pendaftaran failed:', e.message || e); }),
+    this.saveRekamMedis([]).catch((e: any) => { console.warn('Persist rekamMedis failed:', e.message || e); }),
+    this.saveRawatInap([]).catch((e: any) => { console.warn('Persist rawatInap failed:', e.message || e); }),
+    this.saveJanjiTemu([]).catch((e: any) => { console.warn('Persist janjiTemu failed:', e.message || e); }),
+    this.saveVaksinasi([]).catch((e: any) => { console.warn('Persist vaksinasi failed:', e.message || e); }),
+    this.saveTransaksi([]).catch((e: any) => { console.warn('Persist transaksi failed:', e.message || e); }),
+    this.savePembelian([]).catch((e: any) => { console.warn('Persist pembelian failed:', e.message || e); }),
+    this.saveFeedback([]).catch((e: any) => { console.warn('Persist feedback failed:', e.message || e); }),
+    this.savePasien([]).catch((e: any) => { console.warn('Persist pasien failed:', e.message || e); }),
+    this.saveWhatsAppLogs([]).catch((e: any) => { console.warn('Persist wa_logs failed:', e.message || e); }),
+  ];
+
+  await Promise.all(persistCalls);
 };

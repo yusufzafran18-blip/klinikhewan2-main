@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Barang, KategoriBarang } from '../../types';
 import { ModulePermissions } from '../../utils/rbac';
 import { Package, Plus, Search, AlertTriangle, FileSpreadsheet, Edit, Trash2 } from 'lucide-react';
@@ -54,6 +54,53 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [stockFilterStart, setStockFilterStart] = useState('');
   const [stockFilterEnd, setStockFilterEnd] = useState('');
   const [stockCardSearch, setStockCardSearch] = useState('');
+  const lastKnownStockRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    const nextMap: Record<string, number> = {};
+    barangList.forEach((item) => {
+      nextMap[item.id] = item.stokCurrent ?? 0;
+    });
+
+    Object.entries(nextMap).forEach(([barangId, currentStock]) => {
+      const previousStock = lastKnownStockRef.current[barangId];
+      if (previousStock === undefined) {
+        lastKnownStockRef.current[barangId] = currentStock;
+        return;
+      }
+      if (currentStock === previousStock) return;
+
+      const barang = barangList.find((item) => item.id === barangId);
+      if (!barang) return;
+
+      const jenis: StockMutationType = currentStock > previousStock ? 'Masuk' : 'Keluar';
+      const delta = Math.abs(currentStock - previousStock);
+      const keterangan = currentStock > previousStock
+        ? `Perubahan otomatis stok masuk (${barang.namaBarang})`
+        : `Perubahan otomatis stok keluar (${barang.namaBarang})`;
+
+      setStockCardList((prev) => [
+        {
+          id: `stock-auto-${Date.now()}-${barangId}`,
+          barangId,
+          tanggal: new Date().toISOString().slice(0, 10),
+          jenis,
+          jumlah: delta,
+          keterangan,
+          saldoSetelah: currentStock,
+        },
+        ...prev,
+      ]);
+
+      lastKnownStockRef.current[barangId] = currentStock;
+    });
+
+    Object.keys(lastKnownStockRef.current).forEach((barangId) => {
+      if (!nextMap[barangId]) {
+        delete lastKnownStockRef.current[barangId];
+      }
+    });
+  }, [barangList]);
 
   // Form State
   const [namaBarang, setNamaBarang] = useState('');
@@ -94,6 +141,32 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     setShowModal(true);
   };
 
+  const recordStockMutation = (
+    barang: Barang,
+    nextStock: number,
+    jenis: StockMutationType,
+    keterangan: string,
+    tanggal = new Date().toISOString().slice(0, 10)
+  ) => {
+    const previousStock = barang.stokCurrent ?? 0;
+    const delta = nextStock - previousStock;
+    const safeDelta = Math.abs(delta) || 0;
+
+    if (safeDelta === 0 && jenis !== 'Penyesuaian') return;
+
+    const mutation: StockMutation = {
+      id: `stock-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      barangId: barang.id,
+      tanggal,
+      jenis,
+      jumlah: safeDelta,
+      keterangan: keterangan || 'Pencatatan otomatis perubahan stok',
+      saldoSetelah: nextStock,
+    };
+
+    setStockCardList((prev) => [mutation, ...prev]);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const isNew = !editingBarang;
@@ -113,7 +186,20 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
       lokasiRak: lokasiRak || undefined,
     };
 
+    const previousStock = editingBarang?.stokCurrent ?? 0;
+    lastKnownStockRef.current[newBarang.id] = newBarang.stokCurrent ?? 0;
     await onSaveBarang(newBarang);
+
+    if (isNew) {
+      recordStockMutation(newBarang, newBarang.stokCurrent, 'Masuk', `Barang baru ditambahkan ke inventaris (${newBarang.namaBarang})`);
+    } else if (previousStock !== newBarang.stokCurrent) {
+      const mutationType: StockMutationType = newBarang.stokCurrent > previousStock ? 'Masuk' : 'Keluar';
+      const actionText = mutationType === 'Masuk'
+        ? `Penambahan stok otomatis akibat perubahan data inventaris (${newBarang.namaBarang})`
+        : `Pengurangan stok otomatis akibat perubahan data inventaris (${newBarang.namaBarang})`;
+      recordStockMutation(newBarang, newBarang.stokCurrent, mutationType, actionText);
+    }
+
     setShowModal(false);
   };
 
@@ -152,6 +238,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         ? Math.max(0, selectedBarang.stokCurrent - qty)
         : selectedBarang.stokCurrent;
 
+    lastKnownStockRef.current[selectedBarang.id] = nextStock;
     await onSaveBarang({
       ...selectedBarang,
       stokCurrent: nextStock,
@@ -188,6 +275,19 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
 
   const stockCardSummary = filteredStockCardList.slice(0, 8);
 
+  const stockSummaryStats = (() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const todayIn = stockCardList.filter((entry) => entry.tanggal === today && entry.jenis === 'Masuk').reduce((sum, entry) => sum + entry.jumlah, 0);
+    const todayOut = stockCardList.filter((entry) => entry.tanggal === today && entry.jenis === 'Keluar').reduce((sum, entry) => sum + entry.jumlah, 0);
+    const lowStockCount = barangList.filter((b) => b.stokCurrent <= b.stokMinimum).length;
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const monthlyEntries = stockCardList.filter((entry) => entry.tanggal.startsWith(currentMonth));
+    const monthIn = monthlyEntries.filter((entry) => entry.jenis === 'Masuk').reduce((sum, entry) => sum + entry.jumlah, 0);
+    const monthOut = monthlyEntries.filter((entry) => entry.jenis === 'Keluar').reduce((sum, entry) => sum + entry.jumlah, 0);
+
+    return { todayIn, todayOut, lowStockCount, monthIn, monthOut };
+  })();
+
   const handleExportStockCardExcel = () => {
     const data = filteredStockCardList.map((entry) => {
       const barang = barangList.find((b) => b.id === entry.barangId);
@@ -203,6 +303,82 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     });
 
     exportToExcel(data, 'Kartu_Stok_Barang');
+  };
+
+  const renderStockTable = (entries: StockMutation[]) => {
+    return entries.map((entry) => {
+      const barang = barangList.find((b) => b.id === entry.barangId);
+      const masuk = entry.jenis === 'Masuk' ? entry.jumlah : '-';
+      const keluar = entry.jenis === 'Keluar' ? entry.jumlah : '-';
+      return `
+        <tr>
+          <td>${barang?.namaBarang || 'Barang dihapus'}</td>
+          <td>${barang?.kodeBarang || '-'}</td>
+          <td>${entry.tanggal}</td>
+          <td>${masuk}</td>
+          <td>${keluar}</td>
+          <td>${entry.saldoSetelah}</td>
+          <td>${entry.keterangan || '-'}</td>
+        </tr>
+      `;
+    }).join('');
+  };
+
+  const openPrintStockWindow = (entries: StockMutation[], title: string) => {
+    const rows = renderStockTable(entries);
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) {
+      window.alert('Browser memblokir popup untuk mencetak dokumen stok.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>${title}</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #1f2937; padding: 24px; }
+            h2 { margin-bottom: 8px; }
+            p { color: #475569; margin-top: 0; }
+            table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+            th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; font-size: 11px; }
+            th { background: #f8fafc; }
+          </style>
+        </head>
+        <body>
+          <h2>${title}</h2>
+          <p>Dokumen atau catatan yang mencatat barang masuk, barang keluar, serta jumlah persediaan yang tersedia.</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Nama / Kode Barang</th>
+                <th>Kode</th>
+                <th>Tanggal Transaksi</th>
+                <th>Barang Masuk</th>
+                <th>Barang Keluar</th>
+                <th>Saldo / Stok Akhir</th>
+                <th>Keterangan</th>
+              </tr>
+            </thead>
+            <tbody>${rows || '<tr><td colspan="7">Tidak ada data stok untuk dicetak.</td></tr>'}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 500);
+  };
+
+  const handlePrintStockCard = () => {
+    openPrintStockWindow(filteredStockCardList, 'Dokumen / Catatan Stok Barang');
+  };
+
+  const handlePrintOneStockCard = (entry: StockMutation) => {
+    openPrintStockWindow([entry], `Laporan Stok Barang - ${entry.id}`);
   };
 
   return (
@@ -263,13 +439,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             <option value="Vaksin">Vaksin</option>
             <option value="Aksesoris">Aksesoris</option>
           </select>
-          <button
-            type="button"
-            onClick={() => setShowStockCardModal(true)}
-            className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm cursor-pointer"
-          >
-            + Kartu Stok Barang
-          </button>
         </div>
       </div>
 
@@ -342,10 +511,22 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         <div className="flex flex-col gap-3 mb-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-sm font-bold text-slate-800">Kartu Stok Barang</h3>
-              <p className="text-[11px] text-slate-500">Riwayat mutasi stok barang masuk, keluar, dan penyesuaian.</p>
+              <h3 className="text-sm font-bold text-slate-800">Dokumen / Catatan Stok Barang</h3>
+              <p className="text-[11px] text-slate-500">
+                Dokumen atau catatan yang digunakan untuk mencatat barang masuk, barang keluar, dan jumlah persediaan yang tersedia.
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Fungsi: memudahkan pengawasan persediaan, mengetahui jumlah stok secara cepat, serta membantu mencegah kekurangan atau kelebihan barang.
+              </p>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePrintStockCard}
+                className="px-3 py-2 bg-slate-700 hover:bg-slate-800 text-white rounded-xl text-[11px] font-bold cursor-pointer"
+              >
+                Cetak Dokumen
+              </button>
               <button
                 type="button"
                 onClick={handleExportStockCardExcel}
@@ -353,13 +534,25 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               >
                 Export Excel
               </button>
-              <button
-                type="button"
-                onClick={() => setShowStockCardModal(true)}
-                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-bold cursor-pointer"
-              >
-                + Tambah Kartu Stok
-              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3">
+              <p className="text-[10px] uppercase tracking-wide text-emerald-700 font-bold">Stok Masuk Hari Ini</p>
+              <p className="mt-2 text-xl font-black text-emerald-800">{stockSummaryStats.todayIn}</p>
+            </div>
+            <div className="bg-rose-50 border border-rose-100 rounded-2xl p-3">
+              <p className="text-[10px] uppercase tracking-wide text-rose-700 font-bold">Stok Keluar Hari Ini</p>
+              <p className="mt-2 text-xl font-black text-rose-800">{stockSummaryStats.todayOut}</p>
+            </div>
+            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-3">
+              <p className="text-[10px] uppercase tracking-wide text-amber-700 font-bold">Stok Bulan Ini</p>
+              <p className="mt-2 text-xl font-black text-amber-800">{stockSummaryStats.monthIn} / {stockSummaryStats.monthOut}</p>
+            </div>
+            <div className="bg-slate-100 border border-slate-200 rounded-2xl p-3">
+              <p className="text-[10px] uppercase tracking-wide text-slate-700 font-bold">Barang Butuh Alert</p>
+              <p className="mt-2 text-xl font-black text-slate-800">{stockSummaryStats.lowStockCount}</p>
             </div>
           </div>
 
@@ -410,38 +603,43 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           <table className="w-full text-left text-xs text-slate-600">
             <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
               <tr>
-                <th className="p-2">Tanggal</th>
-                <th className="p-2">Barang</th>
-                <th className="p-2">Jenis</th>
-                <th className="p-2">Jumlah</th>
+                <th className="p-2">Nama / Kode Barang</th>
+                <th className="p-2">Tanggal Transaksi</th>
+                <th className="p-2">Barang Masuk</th>
+                <th className="p-2">Barang Keluar</th>
+                <th className="p-2">Saldo / Stok Akhir</th>
                 <th className="p-2">Keterangan</th>
-                <th className="p-2">Saldo</th>
+                <th className="p-2 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {stockCardSummary.length === 0 ? (
-                <tr><td colSpan={6} className="p-4 text-center text-slate-400">Belum ada kartu stok.</td></tr>
+                <tr><td colSpan={7} className="p-4 text-center text-slate-400">Belum ada dokumen catatan stok.</td></tr>
               ) : (
                 stockCardSummary.map((entry) => {
                   const barang = barangList.find((b) => b.id === entry.barangId);
+                  const masuk = entry.jenis === 'Masuk' ? entry.jumlah : '-';
+                  const keluar = entry.jenis === 'Keluar' ? entry.jumlah : '-';
                   return (
                     <tr key={entry.id} className="hover:bg-slate-50">
-                      <td className="p-2">{entry.tanggal}</td>
-                      <td className="p-2 font-semibold text-slate-700">{barang?.namaBarang || 'Barang dihapus'}</td>
                       <td className="p-2">
-                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
-                          entry.jenis === 'Masuk'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : entry.jenis === 'Keluar'
-                              ? 'bg-rose-100 text-rose-800'
-                              : 'bg-amber-100 text-amber-800'
-                        }`}>
-                          {entry.jenis}
-                        </span>
+                        <div className="font-semibold text-slate-700">{barang?.namaBarang || 'Barang dihapus'}</div>
+                        <div className="text-[10px] text-slate-400">{barang?.kodeBarang || '-'}</div>
                       </td>
-                      <td className="p-2 font-bold text-slate-800">{entry.jumlah}</td>
-                      <td className="p-2 text-slate-500">{entry.keterangan}</td>
+                      <td className="p-2">{entry.tanggal}</td>
+                      <td className="p-2 font-bold text-emerald-700">{masuk}</td>
+                      <td className="p-2 font-bold text-rose-700">{keluar}</td>
                       <td className="p-2 font-bold text-indigo-700">{entry.saldoSetelah}</td>
+                      <td className="p-2 text-slate-500">{entry.keterangan}</td>
+                      <td className="p-2 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handlePrintOneStockCard(entry)}
+                          className="px-2 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-bold cursor-pointer"
+                        >
+                          Cetak
+                        </button>
+                      </td>
                     </tr>
                   );
                 })

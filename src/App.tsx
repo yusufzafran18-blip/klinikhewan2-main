@@ -297,6 +297,12 @@ export function App() {
     }
   };
 
+  const handleDeleteRawatInap = async (inapId: string) => {
+    const updated = rawatInapList.filter((r) => r.id !== inapId);
+    setRawatInapList(updated);
+    await storageService.saveRawatInapList(updated);
+  };
+
   const handleUseInventory = async (items: { barangId?: string; nama?: string; jumlah: number }[]) => {
     if (!items || items.length === 0) return;
 
@@ -556,6 +562,15 @@ export function App() {
     const exists = rekamMedisList.some((rm) => rm.id === rmId);
     if (!exists) return;
     const updated = rekamMedisList.map((rm) => rm.id === rmId ? { ...rm, alasanPembatalan: alasan, dibatalkanOleh: user, statusPembayaran: 'Dibatalkan' as const } : rm);
+    setRekamMedisList(updated);
+    await storageService.saveRekamMedisList(updated);
+  };
+
+  // Delete handler for Rawat Jalan (permanent removal)
+  const handleDeleteRekamMedis = async (rmId: string) => {
+    const exists = rekamMedisList.some((rm) => rm.id === rmId);
+    if (!exists) return;
+    const updated = rekamMedisList.filter((rm) => rm.id !== rmId);
     setRekamMedisList(updated);
     await storageService.saveRekamMedisList(updated);
   };
@@ -861,6 +876,7 @@ export function App() {
                     }}
                     onSaveRekamMedis={handleSaveRekamMedis}
                   onCancelRekamMedis={handleCancelRekamMedis}
+                  onDeleteRekamMedis={handleDeleteRekamMedis}
                   activeUserName={activeUser?.nama}
                   />
                 )}
@@ -880,6 +896,7 @@ export function App() {
                     onUseInventory={handleUseInventory}
                     onCheckoutInap={handleCheckoutInap}
                   onCancelRawatInap={handleCancelRawatInap}
+                  onDeleteRawatInap={handleDeleteRawatInap}
                   activeUserName={activeUser?.nama}
                   />
                 )}

@@ -20,6 +20,7 @@ interface RawatInapViewProps {
   onUseInventory?: (items: { barangId?: string; nama?: string; jumlah: number }[]) => void | Promise<void>;
   onCheckoutInap: (inapId: string) => void;
   onCancelRawatInap?: (inapId: string, alasan: string, user: string) => void | Promise<void>;
+  onDeleteRawatInap?: (inapId: string) => void | Promise<void>;
   activeUserName?: string;
 }
 
@@ -37,6 +38,7 @@ export const RawatInapView: React.FC<RawatInapViewProps> = ({
   onUseInventory,
   onCheckoutInap,
   onCancelRawatInap,
+  onDeleteRawatInap,
   activeUserName,
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -188,18 +190,32 @@ export const RawatInapView: React.FC<RawatInapViewProps> = ({
   const [showCancelModalForInap, setShowCancelModalForInap] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
   const [cancelRevertStock, setCancelRevertStock] = useState<boolean>(true);
-
+ 
   const openCancelModal = (inapId: string) => {
     setShowCancelModalForInap(inapId);
     setCancelReason('');
     setCancelRevertStock(true);
   };
-
+ 
   const confirmCancelInap = async () => {
     if (!showCancelModalForInap) return;
     if (typeof onCancelRawatInap !== 'function') return;
     await onCancelRawatInap(showCancelModalForInap, cancelReason || 'Tidak ada keterangan', activeUserName || 'system', cancelRevertStock);
     setShowCancelModalForInap(null);
+  };
+
+  // Delete modal state
+  const [showDeleteModalForInap, setShowDeleteModalForInap] = useState<string | null>(null);
+
+  const openDeleteModal = (inapId: string) => {
+   setShowDeleteModalForInap(inapId);
+  };
+
+  const confirmDeleteInap = async () => {
+   if (!showDeleteModalForInap) return;
+   if (typeof (onDeleteRawatInap) !== 'function') return;
+   await onDeleteRawatInap(showDeleteModalForInap);
+   setShowDeleteModalForInap(null);
   };
 
   const handleSendWaUpdate = (inap: RawatInap) => {
@@ -235,6 +251,21 @@ export const RawatInapView: React.FC<RawatInapViewProps> = ({
             <div className="mt-4 flex justify-end space-x-2">
               <button onClick={() => setShowCancelModalForInap(null)} className="px-3 py-1.5 bg-slate-100 rounded text-xs font-bold">Batal</button>
               <button onClick={confirmCancelInap} className="px-3 py-1.5 bg-rose-600 text-white rounded text-xs font-bold">Konfirmasi Batalkan</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Modal for Rawat Inap */}
+      {showDeleteModalForInap && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h4 className="font-bold text-slate-900 mb-2">Hapus Rawat Inap</h4>
+            <p className="text-xs text-slate-500 mb-3">Konfirmasi: Anda akan menghapus data rawat inap ini secara permanen. Tindakan ini tidak dapat dibatalkan.</p>
+
+            <div className="mt-4 flex justify-end space-x-2">
+              <button onClick={() => setShowDeleteModalForInap(null)} className="px-3 py-1.5 bg-slate-100 rounded text-xs font-bold">Batal</button>
+              <button onClick={confirmDeleteInap} className="px-3 py-1.5 bg-red-600 text-white rounded text-xs font-bold">Hapus</button>
             </div>
           </div>
         </div>
@@ -515,8 +546,18 @@ export const RawatInapView: React.FC<RawatInapViewProps> = ({
                           Batalkan
                         </button>
                       )}
+                      {typeof onDeleteRawatInap === 'function' && (
+                        <button
+                          onClick={() => openDeleteModal(inap.id)}
+                          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xs cursor-pointer shadow-xs transition-all"
+                          title="Hapus daftar rawat inap"
+                        >
+                          Hapus
+                        </button>
+                      )}
                     </div>
                   )}
+                 
                 </div>
 
               </div>

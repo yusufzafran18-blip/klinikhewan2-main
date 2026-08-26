@@ -273,20 +273,70 @@ CREATE TABLE IF NOT EXISTS `feedback_pelanggan` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 17. TABEL WHATSAPP_LOGS
-CREATE TABLE IF NOT EXISTS `whatsapp_logs` (
+-- 17. TABEL MUTASI_STOK (Kartu Stok & Riwayat Keluar Masuk Inventaris)
+CREATE TABLE IF NOT EXISTS `mutasi_stok` (
   `id` VARCHAR(50) NOT NULL,
-  `tanggal` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `no_tujuan` VARCHAR(20) NOT NULL,
-  `penerima` VARCHAR(100) NOT NULL,
-  `pesan` TEXT NOT NULL,
+  `barang_id` VARCHAR(50) NOT NULL,
+  `kode_barang` VARCHAR(50) DEFAULT NULL,
+  `nama_barang` VARCHAR(150) DEFAULT NULL,
+  `kategori` VARCHAR(50) DEFAULT NULL,
+  `satuan` VARCHAR(30) DEFAULT NULL,
+  `tanggal` DATE NOT NULL,
+  `waktu` VARCHAR(20) DEFAULT NULL,
+  `jenis` ENUM('Masuk', 'Keluar', 'Penyesuaian') NOT NULL,
+  `jumlah` INT NOT NULL DEFAULT 0,
+  `saldo_sebelum` INT DEFAULT 0,
+  `saldo_setelah` INT NOT NULL DEFAULT 0,
+  `keterangan` TEXT DEFAULT NULL,
+  `referensi` VARCHAR(100) DEFAULT NULL,
+  `tipe_referensi` VARCHAR(50) DEFAULT NULL,
+  `pasien_nama` VARCHAR(100) DEFAULT NULL,
+  `owner_nama` VARCHAR(100) DEFAULT NULL,
+  `petugas` VARCHAR(100) DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_mutasi_barang` (`barang_id`),
+  INDEX `idx_mutasi_tanggal` (`tanggal`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 18. TABEL WHATSAPP_TEMPLATES
+CREATE TABLE IF NOT EXISTS `whatsapp_templates` (
+  `id` VARCHAR(50) NOT NULL,
   `kategori` VARCHAR(50) NOT NULL,
-  `status` ENUM('Terkirim', 'Gagal', 'Pending') NOT NULL DEFAULT 'Terkirim',
-  `error_details` TEXT DEFAULT NULL,
+  `judul` VARCHAR(150) NOT NULL,
+  `pesan` TEXT NOT NULL,
+  `variable_placeholder_json` JSON DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 18. TABEL KLINIK_CONFIG (Metadata Klinik)
+-- 19. TABEL WHATSAPP_LOGS
+CREATE TABLE IF NOT EXISTS `whatsapp_logs` (
+  `id` VARCHAR(50) NOT NULL,
+  `tanggal` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `no_hp` VARCHAR(20) DEFAULT NULL,
+  `no_tujuan` VARCHAR(20) DEFAULT NULL,
+  `nama_penerima` VARCHAR(100) DEFAULT NULL,
+  `penerima` VARCHAR(100) DEFAULT NULL,
+  `pesan` TEXT NOT NULL,
+  `kategori` VARCHAR(50) NOT NULL DEFAULT 'umum',
+  `status` VARCHAR(30) NOT NULL DEFAULT 'terkirim',
+  `error_message` TEXT DEFAULT NULL,
+  `error_details` TEXT DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 20. TABEL CLINIC_STORE (Key-Value State Store)
+CREATE TABLE IF NOT EXISTS `clinic_store` (
+  `key` VARCHAR(100) NOT NULL,
+  `value` JSON NOT NULL,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 21. TABEL KLINIK_CONFIG (Metadata Klinik)
 CREATE TABLE IF NOT EXISTS `klinik_config` (
   `id` INT NOT NULL DEFAULT 1,
   `nama_klinik` VARCHAR(100) NOT NULL,
@@ -300,7 +350,7 @@ CREATE TABLE IF NOT EXISTS `klinik_config` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 19. TABEL CLINIC_SETTINGS (Profil Klinik & Pengaturan Aplikasi)
+-- 22. TABEL CLINIC_SETTINGS (Profil Klinik & Pengaturan Aplikasi)
 CREATE TABLE IF NOT EXISTS `clinic_settings` (
   `id` INT NOT NULL DEFAULT 1,
   `clinic_profile_json` JSON NOT NULL,
@@ -310,7 +360,7 @@ CREATE TABLE IF NOT EXISTS `clinic_settings` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 20. TABEL CLINIC_BACKUPS (Backup JSON dari Menu Pengaturan)
+-- 23. TABEL CLINIC_BACKUPS (Backup JSON dari Menu Pengaturan)
 CREATE TABLE IF NOT EXISTS `clinic_backups` (
   `id` VARCHAR(80) NOT NULL,
   `backup_version` VARCHAR(30) NOT NULL,
@@ -319,6 +369,44 @@ CREATE TABLE IF NOT EXISTS `clinic_backups` (
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   INDEX `idx_clinic_backups_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 24. TABEL PEMBELIAN (Synonym / Target Tabel Pembelian)
+CREATE TABLE IF NOT EXISTS `pembelian` (
+  `id` VARCHAR(50) NOT NULL,
+  `nomor_po` VARCHAR(50) NOT NULL,
+  `no_faktur` VARCHAR(50) DEFAULT NULL,
+  `supplier_id` VARCHAR(50) NOT NULL,
+  `nama_supplier` VARCHAR(100) DEFAULT NULL,
+  `tanggal` DATE NOT NULL,
+  `items` JSON NOT NULL,
+  `items_json` JSON DEFAULT NULL,
+  `total_harga` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+  `grand_total` DECIMAL(12,2) DEFAULT 0.00,
+  `status` VARCHAR(50) NOT NULL DEFAULT 'Selesai',
+  `catatan` TEXT DEFAULT NULL,
+  `alasan_pembatalan` TEXT DEFAULT NULL,
+  `dibatalkan_oleh` VARCHAR(50) DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 25. TABEL FEEDBACK (Synonym / Target Tabel Feedback)
+CREATE TABLE IF NOT EXISTS `feedback` (
+  `id` VARCHAR(50) NOT NULL,
+  `pasien_id` VARCHAR(50) NOT NULL,
+  `transaksi_id` VARCHAR(50) DEFAULT NULL,
+  `nama_owner` VARCHAR(100) DEFAULT NULL,
+  `nama_pelanggan` VARCHAR(100) DEFAULT NULL,
+  `rating` INT NOT NULL DEFAULT 5,
+  `catatan` TEXT DEFAULT NULL,
+  `komentar` TEXT DEFAULT NULL,
+  `pesan` TEXT DEFAULT NULL,
+  `saran_petugas` TEXT DEFAULT NULL,
+  `balasan_klinik` TEXT DEFAULT NULL,
+  `tanggal` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 

@@ -254,10 +254,17 @@ export function App() {
 
   // Handlers for Rekam Medis
   const handleSaveRekamMedis = async (rm: RekamMedis) => {
-    const existingIndex = rekamMedisList.findIndex((r) => r.id === rm.id);
+    const currentList = storageService.getRekamMedisList()?.length ? storageService.getRekamMedisList() : rekamMedisList;
+    const existingIndex = currentList.findIndex(
+      (r) =>
+        (r.id && rm.id && r.id === rm.id) ||
+        (r.noRM && rm.noRM && r.noRM.trim().toLowerCase() === rm.noRM.trim().toLowerCase()) ||
+        ((r as any).noRekamMedis && (rm as any).noRekamMedis && (r as any).noRekamMedis === (rm as any).noRekamMedis) ||
+        (r.pendaftaranId && rm.pendaftaranId && r.pendaftaranId === rm.pendaftaranId)
+    );
     const updatedRM = existingIndex >= 0
-      ? rekamMedisList.map((r) => (r.id === rm.id ? rm : r))
-      : [rm, ...rekamMedisList];
+      ? currentList.map((r, idx) => (idx === existingIndex ? rm : r))
+      : [rm, ...currentList];
 
     try {
       await storageService.saveRekamMedisList(updatedRM);

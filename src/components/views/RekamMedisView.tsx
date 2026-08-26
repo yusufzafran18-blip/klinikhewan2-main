@@ -5,7 +5,7 @@ import {
 } from '../../types';
 import {
   Stethoscope, Plus, Trash2, Printer, Search, FileText,
-  Upload, CheckCircle, ArrowLeft, Pill, HeartPulse, Camera, Syringe, Package, X, DollarSign
+  Upload, CheckCircle, ArrowLeft, Pill, HeartPulse, Camera, Syringe, Package, X, DollarSign, Edit3
 } from 'lucide-react';
 import { printRekamMedisPDF } from '../../services/pdf';
 import { OutpatientA4ReceiptModal } from '../common/OutpatientA4ReceiptModal';
@@ -44,6 +44,7 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
   onSaveTransaksi,
 }) => {
   const [showFormModal, setShowFormModal] = useState(!!activePendaftaran);
+  const [editingRM, setEditingRM] = useState<RekamMedis | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [printingA4RM, setPrintingA4RM] = useState<RekamMedis | null>(null);
 
@@ -137,32 +138,102 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
 
   // Open modal with default Pemeriksaan & Konsultasi if empty
   const handleOpenNewSOAP = () => {
-    setShowFormModal(true);
-    if (selectedTindakanItems.length === 0) {
-      const defaultT = tindakanList.find(
-        (t) => t.kategori === 'Pemeriksaan' || t.namaTindakan.toLowerCase().includes('pemeriksaan') || t.namaTindakan.toLowerCase().includes('konsultasi')
-      ) || tindakanList[0];
+    setEditingRM(null);
+    setSelectedPasienId(activePendaftaran?.pasienId || pasienList[0]?.id || '');
+    setSelectedDokterId(activePendaftaran?.dokterId || dokterList[0]?.id || '');
+    setKeluhan(activePendaftaran?.keluhanUtama || '');
+    setAnamnesa('');
+    setMakanMinum('Normal');
+    setDurasiSakit('1 Hari');
+    setBeratBadan(3.5);
+    setSuhu(38.5);
+    setFrekuensiNapas(24);
+    setDetakJantung(120);
+    setCrt('< 2 Detik');
+    setDehidrasi('Normal');
+    setPemeriksaanFisik('Kondisi umum compos mentis, mukosa merah muda, auskultasi paru bersih.');
+    setDiagnosaUtama('');
+    setDiagnosaBanding('');
+    setSelectedResepItems([]);
+    setRacikanList([]);
+    setSelectedAlkesItems([]);
+    setSelectedBarangItems([]);
+    setPakanAnjuran('');
+    setStatusLanjutan('Rawat Jalan');
+    setTanggalKontrolUlang('');
+    setLampiranList([]);
 
-      if (defaultT) {
-        setSelectedTindakanItems([
-          {
-            tindakanId: defaultT.id,
-            namaTindakan: defaultT.namaTindakan,
-            tarif: Number(defaultT.tarif || 50000),
-            keterangan: 'Jasa Pemeriksaan & Konsultasi Dokter',
-          },
-        ]);
-      } else {
-        setSelectedTindakanItems([
-          {
-            tindakanId: 'tdk-default',
-            namaTindakan: 'Pemeriksaan & Konsultasi Dokter',
-            tarif: 50000,
-            keterangan: 'Pemeriksaan klinis umum dokter hewan',
-          },
-        ]);
-      }
+    const defaultT = tindakanList.find(
+      (t) => t.kategori === 'Pemeriksaan' || t.namaTindakan.toLowerCase().includes('pemeriksaan') || t.namaTindakan.toLowerCase().includes('konsultasi')
+    ) || tindakanList[0];
+
+    if (defaultT) {
+      setSelectedTindakanItems([
+        {
+          tindakanId: defaultT.id,
+          namaTindakan: defaultT.namaTindakan,
+          tarif: Number(defaultT.tarif || 50000),
+          keterangan: 'Jasa Pemeriksaan & Konsultasi Dokter',
+        },
+      ]);
+    } else {
+      setSelectedTindakanItems([
+        {
+          tindakanId: 'tdk-default',
+          namaTindakan: 'Pemeriksaan & Konsultasi Dokter',
+          tarif: 50000,
+          keterangan: 'Pemeriksaan klinis umum dokter hewan',
+        },
+      ]);
     }
+    setShowFormModal(true);
+  };
+
+  // Edit existing SOAP examination
+  const handleEditSOAP = (rm: RekamMedis) => {
+    setEditingRM(rm);
+    setSelectedPasienId(rm.pasienId || pasienList[0]?.id || '');
+    setSelectedDokterId(rm.dokterId || dokterList[0]?.id || '');
+    setKeluhan(rm.subjective?.keluhan || '');
+    setAnamnesa(rm.subjective?.anamnesa || '');
+    setMakanMinum(rm.subjective?.makanMinum || 'Normal');
+    setDurasiSakit(rm.subjective?.durasiSakit || '1 Hari');
+    setBeratBadan(Number(rm.objective?.beratBadan ?? 3.5));
+    setSuhu(Number(rm.objective?.suhu ?? 38.5));
+    setFrekuensiNapas(Number(rm.objective?.frekuensiNapas ?? 24));
+    setDetakJantung(Number(rm.objective?.detakJantung ?? 120));
+    setCrt(rm.objective?.crt || '< 2 Detik');
+    setDehidrasi(rm.objective?.dehidrasi || 'Normal');
+    setPemeriksaanFisik(rm.objective?.pemeriksaanFisik || '');
+    setDiagnosaUtama(rm.assessment?.diagnosaUtama || (rm as any).diagnosa || '');
+    setDiagnosaBanding(rm.assessment?.diagnosaBanding || '');
+
+    // Set Actions / Tindakan list with guaranteed format
+    if (Array.isArray(rm.plan?.tindakanList) && rm.plan.tindakanList.length > 0) {
+      setSelectedTindakanItems(rm.plan.tindakanList.map((t) => ({
+        ...t,
+        tarif: Number(t.tarif ?? 0),
+      })));
+    } else {
+      setSelectedTindakanItems([
+        {
+          tindakanId: 'tdk-1',
+          namaTindakan: 'Pemeriksaan & Konsultasi Dokter',
+          tarif: 50000,
+          keterangan: 'Jasa Pemeriksaan & Konsultasi Dokter',
+        },
+      ]);
+    }
+
+    setSelectedResepItems(Array.isArray(rm.plan?.resepList) ? rm.plan.resepList : []);
+    setRacikanList(Array.isArray(rm.plan?.racikanList) ? rm.plan.racikanList : []);
+    setSelectedAlkesItems(Array.isArray(rm.plan?.penggunaanAlkesList) ? rm.plan.penggunaanAlkesList : []);
+    setSelectedBarangItems(Array.isArray(rm.plan?.pemakaianBarangList) ? rm.plan.pemakaianBarangList : []);
+    setPakanAnjuran(rm.plan?.pakanAnjuran || '');
+    setStatusLanjutan(rm.plan?.statusLanjutan || 'Rawat Jalan');
+    setTanggalKontrolUlang(rm.plan?.tanggalKontrolUlang || '');
+    setLampiranList(rm.lampiranDokumen || []);
+    setShowFormModal(true);
   };
 
   // Add Item Helpers
@@ -315,15 +386,17 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
   const handleSaveSOAP = async (e: React.FormEvent) => {
     e.preventDefault();
     const count = rekamMedisList.length + 1;
-    const noRM = `RM-2026-${String(count).padStart(4, '0')}`;
+    const id = editingRM ? editingRM.id : ('rm-' + Date.now());
+    const noRM = editingRM?.noRM || `RM-2026-${String(count).padStart(4, '0')}`;
 
     const newRM: RekamMedis = {
-      id: 'rm-' + Date.now(),
+      ...editingRM,
+      id,
       noRM,
-      pendaftaranId: activePendaftaran?.id,
+      pendaftaranId: editingRM?.pendaftaranId || activePendaftaran?.id,
       pasienId: selectedPasienId,
       dokterId: selectedDokterId,
-      tanggal: new Date().toISOString().split('T')[0],
+      tanggal: editingRM?.tanggal || new Date().toISOString().split('T')[0],
       subjective: {
         keluhan,
         anamnesa,
@@ -355,11 +428,12 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
       },
       lampiranDokumen: lampiranList,
       totalBiaya: calculatedGrandTotal,
-      statusPembayaran: 'Belum Lunas',
+      statusPembayaran: editingRM?.statusPembayaran || 'Belum Lunas',
     };
 
     await onSaveRekamMedis(newRM);
     setShowFormModal(false);
+    setEditingRM(null);
     onClearActivePendaftaran();
   };
 
@@ -482,6 +556,16 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
                         <div className="flex items-center justify-end space-x-1.5">
                           <button
                             type="button"
+                            onClick={() => handleEditSOAP(rm)}
+                            className="px-2.5 py-1 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 font-bold rounded-lg text-xs flex items-center space-x-1"
+                            title="Edit Pemeriksaan SOAP Rekam Medis"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>Edit</span>
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={() => setPrintingA4RM(rm)}
                             className="px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 font-bold rounded-lg text-xs flex items-center space-x-1"
                             title="Cetak Nota A4/F4 Rincian Biaya Rawat Jalan"
@@ -521,18 +605,23 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
             {/* Fixed Modal Header */}
             <div className="p-5 pb-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center space-x-3">
-                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl">
+                <div className={`p-2.5 rounded-2xl ${editingRM ? 'bg-amber-50 text-amber-600' : 'bg-indigo-50 text-indigo-600'}`}>
                   <Stethoscope className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Formulir Rekam Medis Dokter (SOAP)</h3>
-                  <p className="text-xs text-slate-500">Pemeriksaan fisik, diagnosa, tindakan, resep obat & obat racikan</p>
+                  <h3 className="text-base font-bold text-slate-900">
+                    {editingRM ? `Edit Formulir Rekam Medis (SOAP) #${editingRM.noRM}` : 'Formulir Rekam Medis Dokter (SOAP)'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {editingRM ? 'Perbarui data anamnesa, hasil fisik, diagnosa, jasa pelayanan & resep obat' : 'Pemeriksaan fisik, diagnosa, tindakan, resep obat & obat racikan'}
+                  </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => {
                   setShowFormModal(false);
+                  setEditingRM(null);
                   onClearActivePendaftaran();
                 }}
                 className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"

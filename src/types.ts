@@ -329,7 +329,7 @@ export interface RiwayatVaksinasi {
 export interface DetailTransaksiItem {
   id: string;
   barangId?: string;
-  jenis: 'Tindakan' | 'Obat' | 'Obat Racikan' | 'Barang/Pakan' | 'Rawat Inap' | 'Produk Retail';
+  jenis: 'Tindakan' | 'Obat' | 'Obat Racikan' | 'Barang/Pakan' | 'Rawat Inap' | 'Produk Retail' | 'Alkes' | 'Barang';
   namaItem: string;
   jumlah: number;
   hargaSatuan: number;

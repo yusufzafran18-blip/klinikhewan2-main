@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Transaksi, RekamMedis, RawatInap, Pasien, DataKlinik, AppSettings, User, ResepItem, AlkesUsageItem, TindakanMedisItem, Barang, Tindakan } from '../../types';
+import { Transaksi, RekamMedis, RawatInap, Pasien, DataKlinik, AppSettings, User, ResepItem, AlkesUsageItem, TindakanMedisItem, Barang, Tindakan, TindakanItem, ObatRacikan } from '../../types';
 import {
   CreditCard, Search, Printer, AlertTriangle, CheckCircle,
   XCircle, FileSpreadsheet, RotateCcw, ShieldAlert, DollarSign, FileText,
@@ -90,40 +90,128 @@ export const KasirView: React.FC<KasirViewProps> = ({
 
   // Helper compute Outpatient / Rekam Medis total
   const computeRMTotal = (rm: RekamMedis) => {
-    const tindakanTotal = (rm.plan?.tindakanList || []).reduce(
-      (s, it) => s + Number(it.tarif || (it as any).hargaSatuan || (it as any).biaya || (it as any).subtotal || 0),
+    // 1. Extract Tindakan / Jasa Pelayanan
+    let tindakanList: TindakanItem[] = [];
+    if (Array.isArray(rm.plan?.tindakanList)) {
+      tindakanList = rm.plan.tindakanList;
+    } else if (typeof (rm.plan as any)?.tindakanList === 'string' && (rm.plan as any).tindakanList.startsWith('[')) {
+      try {
+        tindakanList = JSON.parse((rm.plan as any).tindakanList);
+      } catch (_) {}
+    } else if (typeof (rm as any).tindakan === 'string' && (rm as any).tindakan.startsWith('[')) {
+      try {
+        tindakanList = JSON.parse((rm as any).tindakan);
+      } catch (_) {}
+    } else if (Array.isArray((rm as any).tindakan)) {
+      tindakanList = (rm as any).tindakan;
+    }
+
+    const tindakanTotal = tindakanList.reduce(
+      (s, it) => s + Number(it.tarif ?? (it as any).hargaSatuan ?? (it as any).biaya ?? (it as any).jasaDokter ?? (it as any).subtotal ?? (it as any).harga ?? 0),
       0
     );
-    const obatTotal = (rm.plan?.resepList || []).reduce(
-      (s, it) => s + Number(it.subtotal ?? ((it.hargaSatuan || 0) * (it.jumlah || 0))),
+
+    // 2. Extract Resep Obat
+    let resepList: ResepItem[] = [];
+    if (Array.isArray(rm.plan?.resepList)) {
+      resepList = rm.plan.resepList;
+    } else if (typeof (rm.plan as any)?.resepList === 'string' && (rm.plan as any).resepList.startsWith('[')) {
+      try {
+        resepList = JSON.parse((rm.plan as any).resepList);
+      } catch (_) {}
+    } else if (typeof (rm as any).resep === 'string' && (rm as any).resep.startsWith('[')) {
+      try {
+        resepList = JSON.parse((rm as any).resep);
+      } catch (_) {}
+    } else if (Array.isArray((rm as any).resep)) {
+      resepList = (rm as any).resep;
+    }
+
+    const obatTotal = resepList.reduce(
+      (s, it) => s + Number(it.subtotal ?? ((Number(it.hargaSatuan || 0)) * Number(it.jumlah || 1))),
       0
     );
-    const racikanTotal = (rm.plan?.racikanList || []).reduce(
-      (s, it) => s + Number(it.totalHarga || 0),
+
+    // 3. Extract Racikan
+    let racikanList: ObatRacikan[] = [];
+    if (Array.isArray(rm.plan?.racikanList)) {
+      racikanList = rm.plan.racikanList;
+    } else if (typeof (rm.plan as any)?.racikanList === 'string' && (rm.plan as any).racikanList.startsWith('[')) {
+      try {
+        racikanList = JSON.parse((rm.plan as any).racikanList);
+      } catch (_) {}
+    }
+    const racikanTotal = racikanList.reduce(
+      (s, it) => s + Number(it.totalHarga || (it as any).subtotal || 0),
       0
     );
-    const alkesTotal = (rm.plan?.penggunaanAlkesList || []).reduce(
-      (s, it) => s + Number(it.subtotal ?? ((it.hargaSatuan || 0) * (it.jumlah || 0))),
+
+    // 4. Extract Alkes
+    let alkesList: AlkesUsageItem[] = [];
+    if (Array.isArray(rm.plan?.penggunaanAlkesList)) {
+      alkesList = rm.plan.penggunaanAlkesList;
+    } else if (typeof (rm.plan as any)?.penggunaanAlkesList === 'string' && (rm.plan as any).penggunaanAlkesList.startsWith('[')) {
+      try {
+        alkesList = JSON.parse((rm.plan as any).penggunaanAlkesList);
+      } catch (_) {}
+    }
+    const alkesTotal = alkesList.reduce(
+      (s, it) => s + Number(it.subtotal ?? ((Number(it.hargaSatuan || 0)) * Number(it.jumlah || 1))),
       0
     );
-    const barangTotal = (rm.plan?.pemakaianBarangList || []).reduce(
-      (s, it) => s + Number(it.subtotal ?? ((it.hargaSatuan || 0) * (it.jumlah || 0))),
+
+    // 5. Extract Pemakaian Barang / Pakan
+    let barangList: ResepItem[] = [];
+    if (Array.isArray(rm.plan?.pemakaianBarangList)) {
+      barangList = rm.plan.pemakaianBarangList;
+    } else if (typeof (rm.plan as any)?.pemakaianBarangList === 'string' && (rm.plan as any).pemakaianBarangList.startsWith('[')) {
+      try {
+        barangList = JSON.parse((rm.plan as any).pemakaianBarangList);
+      } catch (_) {}
+    }
+    const barangTotal = barangList.reduce(
+      (s, it) => s + Number(it.subtotal ?? ((Number(it.hargaSatuan || 0)) * Number(it.jumlah || 1))),
       0
     );
 
     const nonTindakanTotal = obatTotal + racikanTotal + alkesTotal + barangTotal;
-    const effectiveTindakanTotal = (tindakanTotal === 0 && (!rm.plan?.tindakanList || rm.plan.tindakanList.length === 0) && Number(rm.totalBiaya || 0) > nonTindakanTotal)
-      ? Number(rm.totalBiaya) - nonTindakanTotal
-      : tindakanTotal;
+    
+    // Check if effective tindakan / jasa pelayanan should fallback to default or total difference
+    let effectiveTindakanTotal = tindakanTotal;
+    let resolvedTindakanList = [...tindakanList];
+
+    if (effectiveTindakanTotal === 0) {
+      if (Number(rm.totalBiaya || 0) > nonTindakanTotal) {
+        effectiveTindakanTotal = Number(rm.totalBiaya) - nonTindakanTotal;
+      } else if (Number(rm.totalBiaya || 0) === 0 && nonTindakanTotal === 0) {
+        effectiveTindakanTotal = 50000;
+      }
+
+      if (resolvedTindakanList.length === 0 && effectiveTindakanTotal > 0) {
+        resolvedTindakanList = [
+          {
+            tindakanId: 'tdk-default',
+            namaTindakan: 'Pemeriksaan & Konsultasi Dokter (Jasa Pelayanan)',
+            tarif: effectiveTindakanTotal,
+            keterangan: 'Jasa pelayanan pemeriksaan klinis dokter hewan',
+          },
+        ];
+      }
+    }
 
     const total = effectiveTindakanTotal + nonTindakanTotal;
     return {
+      tindakanList: resolvedTindakanList,
+      resepList,
+      racikanList,
+      alkesList,
+      barangList,
       tindakanTotal: effectiveTindakanTotal,
       obatTotal,
       racikanTotal,
       alkesTotal,
       barangTotal,
-      total: total > 0 ? total : Number(rm.totalBiaya || 0),
+      total: total > 0 ? total : Number(rm.totalBiaya || 50000),
     };
   };
 
@@ -166,15 +254,15 @@ export const KasirView: React.FC<KasirViewProps> = ({
       const grandTotal = Math.max(0, subtotal - diskon);
       const kembalian = Math.max(0, jumlahBayar - grandTotal);
 
-      // Build comprehensive line items for RM
-      const effectiveTindakanItems = (selectedRMForPay.plan?.tindakanList && selectedRMForPay.plan.tindakanList.length > 0)
-        ? selectedRMForPay.plan.tindakanList.map((t, idx) => ({
+      // Build comprehensive line items for RM with explicit Jasa Pelayanan
+      const effectiveTindakanItems = (rmBill.tindakanList && rmBill.tindakanList.length > 0)
+        ? rmBill.tindakanList.map((t, idx) => ({
             id: 'ti-' + (t.tindakanId || idx),
             jenis: 'Tindakan' as const,
             namaItem: `[Jasa Pelayanan] ${t.namaTindakan}`,
             jumlah: 1,
-            hargaSatuan: Number(t.tarif || 0),
-            subtotal: Number(t.tarif || 0),
+            hargaSatuan: Number(t.tarif ?? (t as any).hargaSatuan ?? (t as any).subtotal ?? 0),
+            subtotal: Number(t.tarif ?? (t as any).hargaSatuan ?? (t as any).subtotal ?? 0),
           }))
         : (rmBill.tindakanTotal > 0 ? [{
             id: 'ti-default',
@@ -187,23 +275,23 @@ export const KasirView: React.FC<KasirViewProps> = ({
 
       const items = [
         ...effectiveTindakanItems,
-        ...(selectedRMForPay.plan?.resepList || []).map((r, idx) => ({
+        ...rmBill.resepList.map((r, idx) => ({
           id: 'ri-' + idx,
           jenis: 'Obat' as const,
-          namaItem: `${r.namaBarang} (${r.dosis})`,
+          namaItem: `${r.namaBarang} (${r.dosis || '1x sehari'})`,
           jumlah: Number(r.jumlah || 1),
           hargaSatuan: Number(r.hargaSatuan || 0),
           subtotal: Number(r.subtotal ?? ((r.hargaSatuan || 0) * (r.jumlah || 1))),
         })),
-        ...(selectedRMForPay.plan?.racikanList || []).map((rac, idx) => ({
+        ...rmBill.racikanList.map((rac, idx) => ({
           id: 'rac-' + idx,
           jenis: 'Obat Racikan' as const,
-          namaItem: rac.namaRacikan,
+          namaItem: `[Racikan] ${rac.namaRacikan}`,
           jumlah: 1,
           hargaSatuan: Number(rac.totalHarga || 0),
           subtotal: Number(rac.totalHarga || 0),
         })),
-        ...(selectedRMForPay.plan?.penggunaanAlkesList || []).map((a, idx) => ({
+        ...rmBill.alkesList.map((a, idx) => ({
           id: 'alkes-' + idx,
           jenis: 'Alkes' as const,
           namaItem: `${a.namaAlkes} (${a.satuan || 'Pcs'})`,
@@ -211,7 +299,7 @@ export const KasirView: React.FC<KasirViewProps> = ({
           hargaSatuan: Number(a.hargaSatuan || 0),
           subtotal: Number(a.subtotal ?? ((a.hargaSatuan || 0) * (a.jumlah || 1))),
         })),
-        ...(selectedRMForPay.plan?.pemakaianBarangList || []).map((b, idx) => ({
+        ...rmBill.barangList.map((b, idx) => ({
           id: 'brg-' + idx,
           jenis: 'Barang' as const,
           namaItem: b.namaBarang,
@@ -242,6 +330,12 @@ export const KasirView: React.FC<KasirViewProps> = ({
       };
 
       await onSaveTransaksi(newTrx);
+      if (onSaveRekamMedis) {
+        await onSaveRekamMedis({
+          ...selectedRMForPay,
+          statusPembayaran: 'Lunas',
+        });
+      }
       setSelectedRMForPay(null);
       setPrintingTrx(newTrx);
     } else if (selectedInapForPay) {
@@ -536,14 +630,14 @@ export const KasirView: React.FC<KasirViewProps> = ({
                     </div>
 
                     {/* Jasa Pelayanan & Tindakan Medis */}
-                    {(selectedRMForPay.plan?.tindakanList && selectedRMForPay.plan.tindakanList.length > 0) ? (
-                      selectedRMForPay.plan.tindakanList.map((t, i) => (
+                    {(rmBill.tindakanList && rmBill.tindakanList.length > 0) ? (
+                      rmBill.tindakanList.map((t, i) => (
                         <div key={'t-' + i} className="flex justify-between text-indigo-900 font-medium">
                           <span className="flex items-center space-x-1.5">
                             <Stethoscope className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                             <span>[Jasa Pelayanan] {t.namaTindakan}</span>
                           </span>
-                          <span className="font-semibold font-mono">Rp {(Number(t.tarif) || 0).toLocaleString('id-ID')}</span>
+                          <span className="font-semibold font-mono">Rp {(Number(t.tarif ?? (t as any).hargaSatuan ?? (t as any).subtotal) || 0).toLocaleString('id-ID')}</span>
                         </div>
                       ))
                     ) : (
@@ -559,46 +653,46 @@ export const KasirView: React.FC<KasirViewProps> = ({
                     )}
 
                     {/* Resep Obat */}
-                    {(selectedRMForPay.plan?.resepList || []).map((r, i) => (
+                    {rmBill.resepList.map((r, i) => (
                       <div key={'r-' + i} className="flex justify-between text-emerald-800">
                         <span className="flex items-center space-x-1.5">
                           <Pill className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                          <span>[Obat] {r.namaBarang} ({r.jumlah} x Rp {(r.hargaSatuan || 0).toLocaleString('id-ID')})</span>
+                          <span>[Obat] {r.namaBarang} ({r.jumlah} x Rp {(Number(r.hargaSatuan) || 0).toLocaleString('id-ID')})</span>
                         </span>
-                        <span className="font-semibold">Rp {(r.subtotal ?? ((r.hargaSatuan || 0) * (r.jumlah || 0))).toLocaleString('id-ID')}</span>
+                        <span className="font-semibold">Rp {(r.subtotal ?? ((Number(r.hargaSatuan) || 0) * (Number(r.jumlah) || 1))).toLocaleString('id-ID')}</span>
                       </div>
                     ))}
 
                     {/* Obat Racikan */}
-                    {(selectedRMForPay.plan?.racikanList || []).map((rac, i) => (
+                    {rmBill.racikanList.map((rac, i) => (
                       <div key={'rac-' + i} className="flex justify-between text-teal-800">
                         <span className="flex items-center space-x-1.5">
                           <Pill className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-                          <span>[Racikan] {rac.namaRacikan} ({rac.jumlahBungkus} Bks)</span>
+                          <span>[Racikan] {rac.namaRacikan} ({rac.jumlahBungkus || 1} Bks)</span>
                         </span>
-                        <span className="font-semibold">Rp {(rac.totalHarga || 0).toLocaleString('id-ID')}</span>
+                        <span className="font-semibold">Rp {(Number(rac.totalHarga) || 0).toLocaleString('id-ID')}</span>
                       </div>
                     ))}
 
                     {/* Penggunaan Alkes & BMHP */}
-                    {(selectedRMForPay.plan?.penggunaanAlkesList || []).map((a, i) => (
+                    {rmBill.alkesList.map((a, i) => (
                       <div key={'alkes-' + i} className="flex justify-between text-amber-800">
                         <span className="flex items-center space-x-1.5">
                           <Syringe className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                          <span>[Alkes] {a.namaAlkes} ({a.jumlah} {a.satuan || 'Pcs'} x Rp {(a.hargaSatuan || 0).toLocaleString('id-ID')})</span>
+                          <span>[Alkes] {a.namaAlkes} ({a.jumlah} {a.satuan || 'Pcs'} x Rp {(Number(a.hargaSatuan) || 0).toLocaleString('id-ID')})</span>
                         </span>
-                        <span className="font-semibold">Rp {(a.subtotal ?? ((a.hargaSatuan || 0) * (a.jumlah || 0))).toLocaleString('id-ID')}</span>
+                        <span className="font-semibold">Rp {(a.subtotal ?? ((Number(a.hargaSatuan) || 0) * (Number(a.jumlah) || 1))).toLocaleString('id-ID')}</span>
                       </div>
                     ))}
 
                     {/* Pemakaian Barang / Pakan */}
-                    {(selectedRMForPay.plan?.pemakaianBarangList || []).map((b, i) => (
+                    {rmBill.barangList.map((b, i) => (
                       <div key={'brg-' + i} className="flex justify-between text-sky-800">
                         <span className="flex items-center space-x-1.5">
                           <Package className="w-3.5 h-3.5 text-sky-600 shrink-0" />
-                          <span>[Pakan/Barang] {b.namaBarang} ({b.jumlah} x Rp {(b.hargaSatuan || 0).toLocaleString('id-ID')})</span>
+                          <span>[Pakan/Barang] {b.namaBarang} ({b.jumlah} x Rp {(Number(b.hargaSatuan) || 0).toLocaleString('id-ID')})</span>
                         </span>
-                        <span className="font-semibold">Rp {(b.subtotal ?? ((b.hargaSatuan || 0) * (b.jumlah || 0))).toLocaleString('id-ID')}</span>
+                        <span className="font-semibold">Rp {(b.subtotal ?? ((Number(b.hargaSatuan) || 0) * (Number(b.jumlah) || 1))).toLocaleString('id-ID')}</span>
                       </div>
                     ))}
                   </div>

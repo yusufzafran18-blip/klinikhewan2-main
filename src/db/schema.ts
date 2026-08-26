@@ -242,7 +242,66 @@ export const feedback = mysqlTable('feedback', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
-// 17. App Config & Settings Tables
+// 17. Mutasi Stok Table
+export const mutasiStok = mysqlTable('mutasi_stok', {
+  id: text('id').primaryKey(),
+  barangId: text('barang_id').notNull(),
+  kodeBarang: text('kode_barang'),
+  namaBarang: text('nama_barang'),
+  kategori: text('kategori'),
+  satuan: text('satuan'),
+  tanggal: text('tanggal').notNull(),
+  waktu: text('waktu'),
+  jenis: text('jenis').notNull(),
+  jumlah: int('jumlah').notNull().default(0),
+  saldoSebelum: int('saldo_sebelum').default(0),
+  saldoSetelah: int('saldo_setelah').notNull().default(0),
+  keterangan: text('keterangan'),
+  referensi: text('referensi'),
+  tipeReferensi: text('tipe_referensi'),
+  pasienNama: text('pasien_nama'),
+  ownerNama: text('owner_nama'),
+  petugas: text('petugas'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// 18. WhatsApp Logs Table
+export const whatsappLogs = mysqlTable('whatsapp_logs', {
+  id: text('id').primaryKey(),
+  tanggal: text('tanggal').notNull(),
+  noHp: text('no_hp').notNull(),
+  namaPenerima: text('nama_penerima').notNull(),
+  pesan: text('pesan').notNull(),
+  status: text('status').notNull().default('terkirim'),
+  kategori: text('kategori').notNull().default('umum'),
+  errorMessage: text('error_message'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// 19. WhatsApp Templates Table
+export const whatsappTemplates = mysqlTable('whatsapp_templates', {
+  id: text('id').primaryKey(),
+  kategori: text('kategori').notNull(),
+  judul: text('judul').notNull(),
+  pesan: text('pesan').notNull(),
+  variablePlaceholderJson: json('variable_placeholder_json'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+// 20. Klinik Config Table
+export const klinikConfig = mysqlTable('klinik_config', {
+  id: int('id').primaryKey().default(1),
+  namaKlinik: text('nama_klinik').notNull(),
+  alamat: text('alamat').notNull(),
+  noTelepon: text('no_telepon').notNull(),
+  email: text('email'),
+  sipKlinik: text('sip_klinik'),
+  footerReceipt: text('footer_receipt'),
+  logoUrl: text('logo_url'),
+  updatedAt: timestamp('updated_at').defaultNow().onUpdateNow(),
+});
+
+// 21. App Config & Settings Tables
 export const clinicStore = mysqlTable('clinic_store', {
   key: text('key').primaryKey(),
   value: json('value').notNull(),

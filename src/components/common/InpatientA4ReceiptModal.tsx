@@ -250,6 +250,22 @@ export const InpatientA4ReceiptModal: React.FC<InpatientA4ReceiptModalProps> = (
       });
     }
 
+    // Tambahkan item pemakaian barang / pakan jika tersedia
+    if (rawatInap.pemakaianBarangList && rawatInap.pemakaianBarangList.length > 0) {
+      rawatInap.pemakaianBarangList.forEach((b, idx) => {
+        items.push({
+          id: `item-inap-barang-${idx}`,
+          kategori: 'Alkes & BMHP',
+          namaItem: b.namaBarang,
+          spesifikasi: b.dosis || b.aturanPakai || 'Pakan/Barang Inap',
+          jumlah: b.jumlah || 1,
+          satuan: b.aturanPakai || 'Pcs',
+          hargaSatuan: b.hargaSatuan || 0,
+          subtotal: b.subtotal ?? (b.jumlah * (b.hargaSatuan || 0)),
+        });
+      });
+    }
+
     // Tambahkan tindakan medis yang dicatat selama rawat inap
     if (rawatInap.tindakanMedisList && rawatInap.tindakanMedisList.length > 0) {
       rawatInap.tindakanMedisList.forEach((t, idx) => {

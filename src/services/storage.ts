@@ -17,7 +17,7 @@ import {
   User, Dokter, Pasien, Barang, Tindakan, Pakan, Pendaftaran, RekamMedis,
   RawatInap, JanjiTemu, RiwayatVaksinasi, Transaksi, PembelianBarang,
   FeedbackOwner, DataKlinik, AppSettings, Supplier, Spesies, RBACConfig, ModulePermissionItem,
-  WhatsAppConfig, WhatsAppTemplate, WhatsAppLog
+  WhatsAppConfig, WhatsAppTemplate, WhatsAppLog, MutasiStok
 } from '../types';
 import {
   saveClinicDataToSql,
@@ -225,6 +225,10 @@ interface StorageServiceInterface {
   getWhatsAppLogs(): WhatsAppLog[];
   saveWhatsAppLogs(logs: WhatsAppLog[]): Promise<void>;
   addWhatsAppLog(logData: Omit<WhatsAppLog, 'id'>): WhatsAppLog[];
+  getMutasiStok(): MutasiStok[];
+  getMutasiStokList(): MutasiStok[];
+  saveMutasiStok(list: MutasiStok[]): Promise<void>;
+  saveMutasiStokList(list: MutasiStok[]): Promise<void>;
   exportFullBackupJSON(): string;
   importFullBackupJSON(jsonString: string): boolean;
   resetDatabaseKeepUsers?(): Promise<void>;
@@ -261,6 +265,7 @@ export const storageService: StorageServiceInterface = {
     if (data.waConfig) cacheManager.set('wa_config', data.waConfig);
     if (data.waTemplates) cacheManager.set('wa_templates', data.waTemplates);
     if (data.waLogs) cacheManager.set('wa_logs', data.waLogs);
+    if (data.mutasiStok) cacheManager.set('mutasi_stok', data.mutasiStok);
     notifyListeners();
   },
 
@@ -297,6 +302,7 @@ export const storageService: StorageServiceInterface = {
       waConfig: this.getWhatsAppConfig(),
       waTemplates: this.getWhatsAppTemplates(),
       waLogs: this.getWhatsAppLogs(),
+      mutasiStok: this.getMutasiStok(),
     });
   },
 
@@ -755,6 +761,79 @@ export const storageService: StorageServiceInterface = {
     const updated = [newLog, ...logs].slice(0, 1000); // Keep last 1000 logs
     this.saveWhatsAppLogs(updated);
     return updated;
+  },
+
+  // ========== MUTASI STOK / DOKUMEN CATATAN STOK ==========
+
+  getMutasiStok(): MutasiStok[] {
+    return cacheManager.get<MutasiStok[]>('mutasi_stok', [
+      {
+        id: 'mutasi-init-1',
+        barangId: 'b-1',
+        kodeBarang: 'OBT-001',
+        namaBarang: 'Amoxicillin 500mg',
+        kategori: 'Obat',
+        satuan: 'Tablet',
+        tanggal: new Date().toISOString().slice(0, 10),
+        waktu: '08:00',
+        jenis: 'Masuk',
+        jumlah: 100,
+        saldoSebelum: 0,
+        saldoSetelah: 100,
+        keterangan: 'Stok Awal Inventaris Farmasi',
+        referensi: 'PO-INIT-001',
+        tipeReferensi: 'Inisialisasi',
+        petugas: 'Administrator'
+      },
+      {
+        id: 'mutasi-init-2',
+        barangId: 'b-2',
+        kodeBarang: 'OBT-002',
+        namaBarang: 'Ivermectin Injection',
+        kategori: 'Obat',
+        satuan: 'Botol',
+        tanggal: new Date().toISOString().slice(0, 10),
+        waktu: '08:00',
+        jenis: 'Masuk',
+        jumlah: 25,
+        saldoSebelum: 0,
+        saldoSetelah: 25,
+        keterangan: 'Stok Awal Inventaris Farmasi',
+        referensi: 'PO-INIT-001',
+        tipeReferensi: 'Inisialisasi',
+        petugas: 'Administrator'
+      },
+      {
+        id: 'mutasi-init-3',
+        barangId: 'b-4',
+        kodeBarang: 'ALK-001',
+        namaBarang: 'Spuit 3cc Terumo',
+        kategori: 'Alkes',
+        satuan: 'Pcs',
+        tanggal: new Date().toISOString().slice(0, 10),
+        waktu: '08:00',
+        jenis: 'Masuk',
+        jumlah: 200,
+        saldoSebelum: 0,
+        saldoSetelah: 200,
+        keterangan: 'Stok Awal BMHP / Alkes',
+        referensi: 'PO-INIT-001',
+        tipeReferensi: 'Inisialisasi',
+        petugas: 'Administrator'
+      }
+    ]);
+  },
+
+  getMutasiStokList(): MutasiStok[] {
+    return this.getMutasiStok();
+  },
+
+  async saveMutasiStok(list: MutasiStok[]): Promise<void> {
+    await persistCache('mutasi_stok', list, { mutasiStok: list });
+  },
+
+  async saveMutasiStokList(list: MutasiStok[]): Promise<void> {
+    await this.saveMutasiStok(list);
   },
 
   // ========== BACKUP & EXPORT ==========

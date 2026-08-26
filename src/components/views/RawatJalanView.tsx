@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { generateWaLink, waTemplates } from '../../services/wa';
 import { printOutpatientCarePDF } from '../../services/pdf';
+import { OutpatientA4ReceiptModal } from '../common/OutpatientA4ReceiptModal';
 
 interface RawatJalanViewProps {
   rekamMedisList: RekamMedis[];
@@ -51,6 +52,7 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
   // Modals state
   const [selectedRmForDetail, setSelectedRmForDetail] = useState<RekamMedis | null>(null);
   const [selectedRmForEtiket, setSelectedRmForEtiket] = useState<RekamMedis | null>(null);
+  const [printingA4RM, setPrintingA4RM] = useState<RekamMedis | null>(null);
   const [showAddOutpatientModal, setShowAddOutpatientModal] = useState(false);
   // Cancel modal for Rawat Jalan (replace prompt-based flow)
   const [showCancelRmModal, setShowCancelRmModal] = useState(false);
@@ -380,6 +382,90 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
         </div>
       </div>
 
+      {/* Active Outpatient Queue from Pendaftaran */}
+      {(() => {
+        const activeQueue = pendaftaranList.filter((p) => {
+          const isRJ = p.jenisLayanan === 'Rawat Jalan' || (!p.jenisLayanan && !p.layananDipilih?.toLowerCase().includes('inap'));
+          return isRJ && (p.status === 'Antri' || p.status === 'Diperiksa');
+        });
+
+        if (activeQueue.length === 0) return null;
+
+        return (
+          <div className="bg-gradient-to-br from-emerald-50 via-teal-50/50 to-white rounded-3xl border-2 border-emerald-200/80 p-5 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                  <Stethoscope className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900 flex items-center space-x-2">
+                    <span>Antrian Pasien Rawat Jalan Hari Ini</span>
+                    <span className="px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-black rounded-full">
+                      {activeQueue.length} Pasien
+                    </span>
+                  </h3>
+                  <p className="text-[11px] text-slate-500">Pasien yang didaftarkan rawat jalan dari Menu Pendaftaran dan siap diperiksa</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {activeQueue.map((p) => {
+                const pasien = pasienList.find((ps) => ps.id === p.pasienId);
+                const dokter = dokterList.find((d) => d.id === p.dokterId);
+
+                return (
+                  <div
+                    key={p.id}
+                    className="bg-white p-4 rounded-2xl border border-emerald-200/70 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-3"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between">
+                        <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-black rounded-lg text-xs border border-emerald-200">
+                          {p.noAntrian}
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          p.status === 'Diperiksa'
+                            ? 'bg-blue-100 text-blue-800 border border-blue-200 animate-pulse'
+                            : 'bg-amber-100 text-amber-800 border border-amber-200'
+                        }`}>
+                          {p.status === 'Diperiksa' ? 'Sedang Diperiksa' : 'Menunggu Dokter'}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-extrabold text-slate-900">{pasien?.namaHewan || 'Pasien'}</h4>
+                        <p className="text-[11px] text-slate-500">
+                          {pasien?.jenisHewan} • Owner: <strong className="text-slate-700">{pasien?.namaOwner}</strong>
+                        </p>
+                      </div>
+
+                      <div className="p-2 bg-slate-50 rounded-xl text-[11px] text-slate-600 border border-slate-100 space-y-0.5">
+                        <p className="text-[10px] text-slate-400 font-semibold">Keluhan:</p>
+                        <p className="line-clamp-2 italic font-medium">"{p.keluhanUtama || 'Pemeriksaan rutin'}"</p>
+                      </div>
+
+                      <p className="text-[10px] text-slate-400">
+                        Dokter: <span className="font-semibold text-slate-700">{dokter?.nama || '-'}</span>
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => onNavigateToSOAP && onNavigateToSOAP(p)}
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-sm transition-all cursor-pointer"
+                    >
+                      <Stethoscope className="w-3.5 h-3.5" />
+                      <span>Mulai SOAP / Periksa Pasien</span>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Main Grid / List of Outpatient Cases */}
       {filteredList.length === 0 ? (
         <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-3">
@@ -515,6 +601,15 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
                       className="p-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl transition-colors cursor-pointer"
                     >
                       <Printer className="w-4 h-4" />
+                    </button>
+
+                    <button
+                      onClick={() => setPrintingA4RM(rm)}
+                      title="Cetak Nota Rincian Biaya Rawat Jalan (A4 / F4)"
+                      className="px-2.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl border border-indigo-200 text-xs flex items-center space-x-1 cursor-pointer transition-colors"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Nota A4/F4</span>
                     </button>
 
                     {hasRecipe && (
@@ -1052,6 +1147,17 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Outpatient A4 / F4 Receipt Modal */}
+      {printingA4RM && (
+        <OutpatientA4ReceiptModal
+          rekamMedis={printingA4RM}
+          pasien={pasienList.find((p) => p.id === printingA4RM.pasienId)}
+          dokter={dokterList.find((d) => d.id === printingA4RM.dokterId)}
+          klinik={klinik}
+          onClose={() => setPrintingA4RM(null)}
+        />
       )}
     </div>
   );

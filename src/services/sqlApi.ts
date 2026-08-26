@@ -37,6 +37,7 @@ export interface SqlSyncPayload {
   waConfig?: any;
   waTemplates?: any[];
   waLogs?: any[];
+  mutasiStok?: any[];
 }
 
 export async function saveClinicSettingsToSql(clinicProfile: any, appSettings: any): Promise<void> {

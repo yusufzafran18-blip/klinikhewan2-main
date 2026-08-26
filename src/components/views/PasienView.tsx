@@ -18,6 +18,7 @@ interface PasienViewProps {
   permissions?: ModulePermissions;
   onSavePasien: (pasien: Pasien) => void;
   onDeletePasien: (id: string) => void;
+  onRegisterTreatment?: (pasienId: string) => void;
 }
 
 export const PasienView: React.FC<PasienViewProps> = ({
@@ -30,6 +31,7 @@ export const PasienView: React.FC<PasienViewProps> = ({
   permissions,
   onSavePasien,
   onDeletePasien,
+  onRegisterTreatment,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [speciesFilter, setSpeciesFilter] = useState<string>('Semua');
@@ -179,7 +181,19 @@ export const PasienView: React.FC<PasienViewProps> = ({
         </div>
       </div>
 
-      {/* Filters Bar */}
+      {/* Filters Bar & Clinical Flow Info */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-100 rounded-2xl p-4 text-xs text-indigo-900 flex items-start space-x-3">
+        <div className="p-2 bg-indigo-600 text-white rounded-xl shrink-0 mt-0.5">
+          <HeartPulse className="w-4 h-4" />
+        </div>
+        <div className="space-y-0.5">
+          <p className="font-extrabold text-indigo-950">Pedoman Alur Berobat Pasien Terdaftar (Pasien Lama):</p>
+          <p className="text-slate-600 text-[11px] leading-relaxed">
+            Pasien yang sudah terdaftar di master data ini <strong>tidak perlu diinput ulang</strong> saat datang berobat. Cukup klik tombol <strong>"Daftar Berobat"</strong> pada baris pasien untuk langsung membuat nomor antrian dan menentukan alokasi <strong>Rawat Jalan (Poli)</strong> atau <strong>Rawat Inap (Kandang)</strong>.
+          </p>
+        </div>
+      </div>
+
       <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
         <div className="flex items-center space-x-2 w-full sm:w-auto flex-1">
           <Search className="w-4 h-4 text-slate-400" />
@@ -238,6 +252,17 @@ export const PasienView: React.FC<PasienViewProps> = ({
                         <p className="text-xs text-slate-500">{p.jenisHewan} • {p.ras}</p>
                       </div>
                     </div>
+
+                    {onRegisterTreatment && (
+                      <button
+                        onClick={() => onRegisterTreatment(p.id)}
+                        className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-xl shadow-xs flex items-center space-x-1 cursor-pointer transition-all"
+                        title="Daftarkan Berobat (Rawat Jalan / Rawat Inap)"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Daftar Berobat</span>
+                      </button>
+                    )}
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-600">

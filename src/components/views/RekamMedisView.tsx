@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import {
   RekamMedis, Pasien, Dokter, Barang, Tindakan, Pendaftaran,
-  ObatRacikan, ResepItem, TindakanItem, DataKlinik
+  ObatRacikan, ResepItem, TindakanItem, DataKlinik, AlkesUsageItem
 } from '../../types';
 import {
   Stethoscope, Plus, Trash2, Printer, Search, FileText,
-  Upload, CheckCircle, ArrowLeft, Pill, HeartPulse, Camera
+  Upload, CheckCircle, ArrowLeft, Pill, HeartPulse, Camera, Syringe, Package
 } from 'lucide-react';
 import { printRekamMedisPDF } from '../../services/pdf';
+import { OutpatientA4ReceiptModal } from '../common/OutpatientA4ReceiptModal';
 
 interface RekamMedisViewProps {
   rekamMedisList: RekamMedis[];
@@ -36,6 +37,7 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
 }) => {
   const [showFormModal, setShowFormModal] = useState(!!activePendaftaran);
   const [searchQuery, setSearchQuery] = useState('');
+  const [printingA4RM, setPrintingA4RM] = useState<RekamMedis | null>(null);
 
   // Form SOAP State
   const [selectedPasienId, setSelectedPasienId] = useState(activePendaftaran?.pasienId || pasienList[0]?.id || '');
@@ -63,6 +65,8 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
   // Plan
   const [selectedTindakanItems, setSelectedTindakanItems] = useState<TindakanItem[]>([]);
   const [selectedResepItems, setSelectedResepItems] = useState<ResepItem[]>([]);
+  const [selectedAlkesItems, setSelectedAlkesItems] = useState<AlkesUsageItem[]>([]);
+  const [selectedBarangItems, setSelectedBarangItems] = useState<ResepItem[]>([]);
   
   // Racikan State
   const [racikanList, setRacikanList] = useState<ObatRacikan[]>([]);
@@ -121,6 +125,64 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
     setSelectedResepItems(selectedResepItems.filter((_, i) => i !== index));
   };
 
+  // Alkes Handlers
+  const handleAddAlkes = (barangId: string) => {
+    const b = barangList.find((item) => item.id === barangId);
+    if (!b) return;
+    setSelectedAlkesItems([
+      ...selectedAlkesItems,
+      {
+        id: 'alkes-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+        barangId: b.id,
+        namaAlkes: b.namaBarang,
+        jumlah: 1,
+        satuan: b.satuan || 'Pcs',
+        hargaSatuan: b.hargaJual,
+        subtotal: b.hargaJual,
+      }
+    ]);
+  };
+
+  const handleUpdateAlkesQty = (index: number, qty: number) => {
+    const updated = [...selectedAlkesItems];
+    updated[index].jumlah = qty;
+    updated[index].subtotal = qty * (updated[index].hargaSatuan || 0);
+    setSelectedAlkesItems(updated);
+  };
+
+  const handleRemoveAlkes = (index: number) => {
+    setSelectedAlkesItems(selectedAlkesItems.filter((_, i) => i !== index));
+  };
+
+  // Barang / Pakan Handlers
+  const handleAddBarang = (barangId: string) => {
+    const b = barangList.find((item) => item.id === barangId);
+    if (!b) return;
+    setSelectedBarangItems([
+      ...selectedBarangItems,
+      {
+        barangId: b.id,
+        namaBarang: b.namaBarang,
+        jumlah: 1,
+        dosis: '1x sehari',
+        aturanPakai: b.satuan || 'Pcs',
+        hargaSatuan: b.hargaJual,
+        subtotal: b.hargaJual,
+      }
+    ]);
+  };
+
+  const handleUpdateBarangQty = (index: number, qty: number) => {
+    const updated = [...selectedBarangItems];
+    updated[index].jumlah = qty;
+    updated[index].subtotal = qty * (updated[index].hargaSatuan || 0);
+    setSelectedBarangItems(updated);
+  };
+
+  const handleRemoveBarang = (index: number) => {
+    setSelectedBarangItems(selectedBarangItems.filter((_, i) => i !== index));
+  };
+
   const handleAddSampleRacikan = () => {
     const newRacikan: ObatRacikan = {
       id: 'rac-' + Date.now(),
@@ -137,15 +199,18 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
     setShowRacikanBuilder(false);
   };
 
+  // Calculated Totals
+  const totalTindakan = selectedTindakanItems.reduce((acc, i) => acc + (i.tarif || 0), 0);
+  const totalResep = selectedResepItems.reduce((acc, i) => acc + (i.subtotal || 0), 0);
+  const totalRacikan = racikanList.reduce((acc, i) => acc + (i.totalHarga || 0), 0);
+  const totalAlkes = selectedAlkesItems.reduce((acc, i) => acc + (i.subtotal || ((i.hargaSatuan || 0) * (i.jumlah || 1))), 0);
+  const totalBarang = selectedBarangItems.reduce((acc, i) => acc + (i.subtotal || ((i.hargaSatuan || 0) * (i.jumlah || 1))), 0);
+  const calculatedGrandTotal = totalTindakan + totalResep + totalRacikan + totalAlkes + totalBarang;
+
   const handleSaveSOAP = async (e: React.FormEvent) => {
     e.preventDefault();
     const count = rekamMedisList.length + 1;
     const noRM = `RM-2026-${String(count).padStart(4, '0')}`;
-
-    const totalTindakan = selectedTindakanItems.reduce((acc, i) => acc + i.tarif, 0);
-    const totalResep = selectedResepItems.reduce((acc, i) => acc + i.subtotal, 0);
-    const totalRacikan = racikanList.reduce((acc, i) => acc + i.totalHarga, 0);
-    const totalBiaya = totalTindakan + totalResep + totalRacikan;
 
     const newRM: RekamMedis = {
       id: 'rm-' + Date.now(),
@@ -177,12 +242,14 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
         tindakanList: selectedTindakanItems,
         resepList: selectedResepItems,
         racikanList,
+        penggunaanAlkesList: selectedAlkesItems,
+        pemakaianBarangList: selectedBarangItems,
         pakanAnjuran,
         statusLanjutan,
         tanggalKontrolUlang,
       },
       lampiranDokumen: lampiranList,
-      totalBiaya,
+      totalBiaya: calculatedGrandTotal,
       statusPembayaran: 'Belum Lunas',
     };
 
@@ -307,17 +374,31 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
                         </span>
                       </td>
                       <td className="p-4 text-right">
-                        <button
-                          onClick={() => {
-                            if (pasien && dokter) {
-                              printRekamMedisPDF(rm, pasien, dokter, klinik);
-                            }
-                          }}
-                          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg text-xs flex items-center space-x-1 ml-auto"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                          <span>PDF</span>
-                        </button>
+                        <div className="flex items-center justify-end space-x-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setPrintingA4RM(rm)}
+                            className="px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 font-bold rounded-lg text-xs flex items-center space-x-1"
+                            title="Cetak Nota A4/F4 Rincian Biaya Rawat Jalan"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Nota A4/F4</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (pasien && dokter) {
+                                printRekamMedisPDF(rm, pasien, dokter, klinik);
+                              }
+                            }}
+                            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg text-xs flex items-center space-x-1"
+                            title="Cetak Lembar Medis SOAP"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>PDF</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -592,7 +673,7 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
                     <button
                       type="button"
                       onClick={handleAddSampleRacikan}
-                      className="px-2.5 py-1 bg-purple-600 text-white text-xs font-bold rounded-lg shadow-xs"
+                      className="px-2.5 py-1 bg-purple-600 text-white text-xs font-bold rounded-lg shadow-xs cursor-pointer"
                     >
                       + Tambah Racikan (Rp 20.000)
                     </button>
@@ -608,6 +689,106 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
                         <span className="font-extrabold text-purple-800">Rp {(rac.totalHarga || 0).toLocaleString('id-ID')}</span>
                       </div>
                     ))}
+                  </div>
+                </div>
+
+                {/* Penggunaan Alkes & BMHP */}
+                <div className="p-3 bg-cyan-50 border border-cyan-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-cyan-900 flex items-center">
+                      <Syringe className="w-4 h-4 mr-1 text-cyan-700" /> Penggunaan Alkes & BMHP (Disposable)
+                    </span>
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) handleAddAlkes(e.target.value);
+                        e.target.value = '';
+                      }}
+                      className="text-xs p-1.5 rounded-lg border border-cyan-300 bg-white text-slate-800"
+                    >
+                      <option value="">+ Tambah Alkes / BMHP</option>
+                      {barangList.filter((b) => b.kategori === 'Alkes' || b.kategori === 'Lainnya').map((b) => (
+                        <option key={b.id} value={b.id}>{b.namaBarang} (Stok: {b.stokCurrent} {b.satuan || 'Pcs'}) - Rp {(b.hargaJual || 0).toLocaleString('id-ID')}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2 pt-1">
+                    {selectedAlkesItems.length === 0 ? (
+                      <p className="text-[11px] text-cyan-700 italic">Belum ada pemakaian alkes/BMHP ditambahkan.</p>
+                    ) : (
+                      selectedAlkesItems.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-white p-2 rounded-lg border border-cyan-200 text-xs">
+                          <span className="font-bold text-slate-800">{item.namaAlkes}</span>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.jumlah}
+                              onChange={(e) => handleUpdateAlkesQty(idx, parseInt(e.target.value) || 1)}
+                              className="w-14 p-1 rounded border border-slate-300 text-center font-bold"
+                            />
+                            <span className="text-[11px] text-slate-500 font-medium">{item.satuan || 'Pcs'}</span>
+                            <span className="font-bold text-cyan-800 font-mono">Rp {(item.subtotal || 0).toLocaleString('id-ID')}</span>
+                            <button type="button" onClick={() => handleRemoveAlkes(idx)} className="text-rose-600 hover:text-rose-800 cursor-pointer">×</button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Pemakaian Barang / Pakan Diet / Nutrisi */}
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-900 flex items-center">
+                      <Package className="w-4 h-4 mr-1 text-amber-700" /> Pemakaian Pakan Diet & Barang Medis
+                    </span>
+                    <select
+                      onChange={(e) => {
+                        if (e.target.value) handleAddBarang(e.target.value);
+                        e.target.value = '';
+                      }}
+                      className="text-xs p-1.5 rounded-lg border border-amber-300 bg-white text-slate-800"
+                    >
+                      <option value="">+ Tambah Pakan / Barang</option>
+                      {barangList.filter((b) => b.kategori === 'Pakan' || b.kategori === 'Aksesoris' || b.kategori === 'Lainnya').map((b) => (
+                        <option key={b.id} value={b.id}>{b.namaBarang} (Stok: {b.stokCurrent}) - Rp {(b.hargaJual || 0).toLocaleString('id-ID')}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2 pt-1">
+                    {selectedBarangItems.length === 0 ? (
+                      <p className="text-[11px] text-amber-700 italic">Belum ada pemakaian pakan/barang medis ditambahkan.</p>
+                    ) : (
+                      selectedBarangItems.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-white p-2 rounded-lg border border-amber-200 text-xs">
+                          <span className="font-bold text-slate-800">{item.namaBarang}</span>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="number"
+                              min="1"
+                              value={item.jumlah}
+                              onChange={(e) => handleUpdateBarangQty(idx, parseInt(e.target.value) || 1)}
+                              className="w-14 p-1 rounded border border-slate-300 text-center font-bold"
+                            />
+                            <input
+                              type="text"
+                              value={item.dosis}
+                              onChange={(e) => {
+                                const updated = [...selectedBarangItems];
+                                updated[idx].dosis = e.target.value;
+                                setSelectedBarangItems(updated);
+                              }}
+                              className="w-24 p-1 rounded border border-slate-300 text-[11px]"
+                              placeholder="Aturan/Porsi"
+                            />
+                            <span className="font-bold text-amber-800 font-mono">Rp {(item.subtotal || 0).toLocaleString('id-ID')}</span>
+                            <button type="button" onClick={() => handleRemoveBarang(idx)} className="text-rose-600 hover:text-rose-800 cursor-pointer">×</button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -639,6 +820,44 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
                   </div>
                 </div>
 
+                {/* Ringkasan Biaya Live Plan */}
+                <div className="bg-indigo-900 text-white p-4 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between pb-2 border-b border-indigo-700/60 text-xs">
+                    <span className="font-bold text-indigo-200">Rincian Estimasi Biaya Rawat Jalan:</span>
+                    <span className="text-[10px] text-indigo-300">Tersimpan ke Billing Kasir & Nota A4/F4</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px] pt-1">
+                    <div className="bg-indigo-800/60 p-2 rounded-lg">
+                      <p className="text-slate-300 text-[10px]">Tindakan</p>
+                      <p className="font-bold font-mono">Rp {totalTindakan.toLocaleString('id-ID')}</p>
+                    </div>
+                    <div className="bg-indigo-800/60 p-2 rounded-lg">
+                      <p className="text-slate-300 text-[10px]">Resep Obat</p>
+                      <p className="font-bold font-mono">Rp {totalResep.toLocaleString('id-ID')}</p>
+                    </div>
+                    <div className="bg-indigo-800/60 p-2 rounded-lg">
+                      <p className="text-slate-300 text-[10px]">Obat Racikan</p>
+                      <p className="font-bold font-mono">Rp {totalRacikan.toLocaleString('id-ID')}</p>
+                    </div>
+                    <div className="bg-indigo-800/60 p-2 rounded-lg">
+                      <p className="text-slate-300 text-[10px]">Alkes & BMHP</p>
+                      <p className="font-bold font-mono">Rp {totalAlkes.toLocaleString('id-ID')}</p>
+                    </div>
+                    <div className="bg-indigo-800/60 p-2 rounded-lg col-span-2 sm:col-span-1">
+                      <p className="text-slate-300 text-[10px]">Pakan / Nutrisi</p>
+                      <p className="font-bold font-mono">Rp {totalBarang.toLocaleString('id-ID')}</p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-between">
+                    <span className="font-bold text-xs uppercase tracking-wider text-indigo-200">TOTAL ESTIMASI BIAYA RAWAT JALAN:</span>
+                    <span className="text-base font-black text-emerald-400 font-mono">
+                      Rp {calculatedGrandTotal.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </div>
+
               </div>
 
               {/* Submit Buttons */}
@@ -661,6 +880,17 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Outpatient A4 Receipt Modal */}
+      {printingA4RM && (
+        <OutpatientA4ReceiptModal
+          rekamMedis={printingA4RM}
+          pasien={pasienList.find((p) => p.id === printingA4RM.pasienId)}
+          dokter={dokterList.find((d) => d.id === printingA4RM.dokterId)}
+          klinik={klinik}
+          onClose={() => setPrintingA4RM(null)}
+        />
       )}
 
     </div>

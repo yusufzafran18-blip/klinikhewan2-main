@@ -126,15 +126,24 @@ export interface Pakan {
 
 export type PakanHewan = Pakan;
 
+export type JenisLayananPendaftaran = 'Rawat Jalan' | 'Rawat Inap';
+
 export interface Pendaftaran {
   id: string;
-  noAntrian: string; // A-001
+  noAntrian: string; // RJ-001 / RI-001 / A-001
   pasienId: string;
   dokterId: string;
   tanggal: string; // YYYY-MM-DD
   waktu: string;
   keluhanUtama: string;
   layananDipilih?: string;
+  jenisLayanan: JenisLayananPendaftaran; // 'Rawat Jalan' atau 'Rawat Inap'
+  rawatInapDetail?: {
+    noKandang?: string;
+    tarifPerHari?: number;
+    diagnosaAwal?: string;
+  };
+  rawatInapId?: string;
   status: 'Antri' | 'Diperiksa' | 'Selesai' | 'Batal';
   petugasId: string;
 }
@@ -210,6 +219,8 @@ export interface RekamMedis {
     tindakanList: TindakanItem[];
     resepList: ResepItem[];
     racikanList: ObatRacikan[];
+    penggunaanAlkesList?: AlkesUsageItem[];
+    pemakaianBarangList?: ResepItem[];
     pakanAnjuran?: string;
     catatanTambahan?: string;
     statusLanjutan: 'Rawat Jalan' | 'Rawat Inap' | 'Rujukan' | 'Meninggal';
@@ -243,6 +254,7 @@ export interface MonitoringLog {
 
 export interface AlkesUsageItem {
   id: string;
+  barangId?: string;
   namaAlkes: string;
   jumlah: number;
   satuan?: string;
@@ -260,6 +272,7 @@ export interface TindakanMedisItem {
 
 export interface RawatInap {
   id: string;
+  pendaftaranId?: string;
   pasienId: string;
   noKandang: string; // e.g. Kandang Kucing 02
   tanggalMasuk: string;
@@ -277,12 +290,15 @@ export interface RawatInap {
   penggunaanAlkes?: string; // catatan alkes (ringkasan)
   pelaksanaanPerawatan?: string; // uraian pelaksanaan perawatan oleh petugas
 
-  // Terstruktur: daftar objek untuk integrasi dengan nota/penjualan
+  // Terstruktur: daftar objek untuk integrasi dengan nota/penjualan & pengurangan stok
   pemberianObatList?: ResepItem[];
   penggunaanAlkesList?: AlkesUsageItem[];
+  pemakaianBarangList?: ResepItem[]; // pemakaian barang/pakan/bmhp lainnya
   tindakanMedisList?: TindakanMedisItem[];
 
   biayaTambahan?: number; // biaya tambahan yang harus dikenakan selain tarif per hari
+  totalBiaya?: number; // total akumulasi biaya rawat inap
+  statusPembayaran?: 'Belum Lunas' | 'Lunas' | 'Dibatalkan';
   catatanKhusus?: string;
 }
 
@@ -447,3 +463,39 @@ export interface WhatsAppLog {
   kategori: string;
   errorMessage?: string;
 }
+
+export type JenisMutasiStok = 'Masuk' | 'Keluar' | 'Penyesuaian';
+
+export type TipeReferensiMutasi = 
+  | 'Rawat Jalan' 
+  | 'Rawat Inap' 
+  | 'Penjualan Direct (PetShop)' 
+  | 'Pembelian' 
+  | 'Penyesuaian Manual' 
+  | 'Inisialisasi'
+  | 'Pembatalan / Revert';
+
+export interface MutasiStok {
+  id: string;
+  barangId: string;
+  kodeBarang?: string;
+  namaBarang?: string;
+  kategori?: string;
+  satuan?: string;
+  tanggal: string; // YYYY-MM-DD
+  waktu?: string; // HH:mm
+  jenis: JenisMutasiStok;
+  jumlah: number;
+  saldoSebelum?: number;
+  saldoSetelah: number;
+  keterangan: string;
+  referensi?: string; // No Nota, No RM, No PO, dll.
+  tipeReferensi?: TipeReferensiMutasi;
+  pasienNama?: string;
+  ownerNama?: string;
+  petugas?: string;
+}
+
+export type KartuStokItem = MutasiStok;
+export type StockMutation = MutasiStok;
+

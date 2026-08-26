@@ -367,10 +367,16 @@ async function ensureMysqlSchemaCompatibility() {
     ['rekam_medis', 'suhu', 'VARCHAR(30) NULL'], ['rekam_medis', 'berat_badan', 'VARCHAR(30) NULL'],
     ['rekam_medis', 'resep', 'JSON NULL'], ['rekam_medis', 'tindakan', 'JSON NULL'],
     ['rekam_medis', 'catatan', 'TEXT NULL'],
-    ['rawat_inap', 'no_kamar', "VARCHAR(50) NULL"], ['rawat_inap', 'dokter_id', "VARCHAR(50) NULL"],
-    ['rawat_inap', 'diagnosa', 'TEXT NULL'], ['rawat_inap', 'pakan_id', "VARCHAR(50) NULL"],
+    ['rawat_inap', 'no_kamar', "VARCHAR(50) NULL"], ['rawat_inap', 'no_kandang', "VARCHAR(100) NULL"],
+    ['rawat_inap', 'dokter_id', "VARCHAR(50) NULL"], ['rawat_inap', 'dokter_pj_id', "VARCHAR(50) NULL"],
+    ['rawat_inap', 'diagnosa', 'TEXT NULL'], ['rawat_inap', 'diagnosa_inap', 'TEXT NULL'],
+    ['rawat_inap', 'tarif_per_hari', 'DECIMAL(12,2) NULL DEFAULT 100000'],
+    ['rawat_inap', 'pakan_id', "VARCHAR(50) NULL"],
     ['rawat_inap', 'catatan', 'TEXT NULL'], ['rawat_inap', 'daily_notes', 'JSON NULL'],
-    ['rawat_inap', 'monitoring_logs', 'JSON NULL'], ['rawat_inap', 'total_biaya', 'DECIMAL(12,2) NULL DEFAULT 0'],
+    ['rawat_inap', 'monitoring_logs', 'JSON NULL'], ['rawat_inap', 'monitoring_logs_json', 'JSON NULL'],
+    ['rawat_inap', 'pemberian_obat_json', 'JSON NULL'], ['rawat_inap', 'penggunaan_alkes_json', 'JSON NULL'],
+    ['rawat_inap', 'pemakaian_barang_json', 'JSON NULL'], ['rawat_inap', 'tindakan_medis_json', 'JSON NULL'],
+    ['rawat_inap', 'total_biaya', 'DECIMAL(12,2) NULL DEFAULT 0'], ['rawat_inap', 'total_biaya_inap', 'DECIMAL(12,2) NULL DEFAULT 0'],
     ['rawat_inap', 'created_at', 'TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP'],
     ['janji_temu', 'waktu', 'TIME NULL'], ['janji_temu', 'keluhan', 'TEXT NULL'],
     ['janji_temu', 'jenis_layanan', "VARCHAR(100) NULL"], ['janji_temu', 'reminder_sent', 'TINYINT(1) NULL DEFAULT 0'],
@@ -1107,6 +1113,27 @@ app.post('/api/data/sync', async (req: Request, res: Response) => {
           }
         }
 
+        if (Array.isArray(data.rekamMedis)) {
+          for (const rm of data.rekamMedis) {
+            if (!rm.id || !rm.pasienId) continue;
+            await upsertRecord('rekam_medis', 'id', {
+              id: rm.id,
+              no_rekam_medis: rm.noRM || rm.noRekamMedis || ('RM-' + rm.id),
+              tanggal: rm.tanggal || new Date().toISOString().split('T')[0],
+              pasien_id: rm.pasienId,
+              dokter_id: rm.dokterId || 'drh-1',
+              subjektif: typeof rm.subjective === 'object' ? JSON.stringify(rm.subjective) : (rm.subjektif || '-'),
+              objektif: typeof rm.objective === 'object' ? JSON.stringify(rm.objective) : (rm.objektif || '-'),
+              assesment: typeof rm.assessment === 'object' ? JSON.stringify(rm.assessment) : (rm.assesment || '-'),
+              diagnosa: rm.assessment?.diagnosaUtama || rm.diagnosa || '-',
+              plan: typeof rm.plan === 'object' ? JSON.stringify(rm.plan) : (rm.plan || '-'),
+              tindakan: JSON.stringify(rm.plan?.tindakanList || []),
+              resep: JSON.stringify(rm.plan?.resepList || []),
+              total_biaya: String(rm.totalBiaya || 0),
+            });
+          }
+        }
+
         if (Array.isArray(data.rawatInap)) {
           for (const ri of data.rawatInap) {
             if (!ri.id || !ri.pasienId) continue;
@@ -1114,14 +1141,22 @@ app.post('/api/data/sync', async (req: Request, res: Response) => {
               id: ri.id,
               pasien_id: ri.pasienId,
               no_kandang: ri.noKandang || 'Kandang Rawat Inap',
+              no_kamar: ri.noKandang || 'Kandang Rawat Inap',
               tanggal_masuk: ri.tanggalMasuk || new Date().toISOString().replace('T', ' ').slice(0, 19),
               tanggal_keluar: ri.tanggalKeluarAktif || null,
               dokter_pj_id: ri.dokterPenanggungJawabId || 'drh-1',
+              dokter_id: ri.dokterPenanggungJawabId || 'drh-1',
               diagnosa_inap: ri.diagnosaInap || 'Rawat Inap',
+              diagnosa: ri.diagnosaInap || 'Rawat Inap',
               tarif_per_hari: String(ri.tarifPerHari || 100000),
               status: ri.status || 'Aktif',
+              monitoring_logs: ri.monitoringLogs || [],
               monitoring_logs_json: JSON.stringify(ri.monitoringLogs || []),
-              pemberian_pakan_json: JSON.stringify(ri.pemakaianBarangList || []),
+              pemberian_obat_json: JSON.stringify(ri.pemberianObatList || []),
+              penggunaan_alkes_json: JSON.stringify(ri.penggunaanAlkesList || []),
+              pemakaian_barang_json: JSON.stringify(ri.pemakaianBarangList || []),
+              tindakan_medis_json: JSON.stringify(ri.tindakanMedisList || []),
+              total_biaya: String(ri.totalBiaya || 0),
               total_biaya_inap: String(ri.totalBiaya || 0),
             });
           }

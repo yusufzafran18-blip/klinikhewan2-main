@@ -597,13 +597,13 @@ export const PendaftaranView: React.FC<PendaftaranViewProps> = ({
 
       {/* Modal Form Pendaftaran Berobat & Alokasi Layanan */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-2xl w-full p-6 my-8 animate-in fade-in duration-150">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[92vh] flex flex-col my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            {/* Fixed Modal Header */}
+            <div className="p-5 sm:p-6 pb-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center space-x-3">
-                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl">
+                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl shrink-0">
                   <ClipboardList className="w-6 h-6" />
                 </div>
                 <div>
@@ -612,358 +612,363 @@ export const PendaftaranView: React.FC<PendaftaranViewProps> = ({
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setShowModal(false)}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors"
+                title="Tutup Form"
               >
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-5 mt-4">
+            <form onSubmit={handleSave} className="flex flex-col flex-1 min-h-0 overflow-hidden">
               
-              {/* STEP 1: PILIH PASIEN LAMA VS PASIEN BARU */}
-              <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-3">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
-                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">1</span>
-                    <span>Status Pasien</span>
-                  </label>
+              {/* Scrollable Form Body */}
+              <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1">
+                {/* STEP 1: PILIH PASIEN LAMA VS PASIEN BARU */}
+                <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
+                      <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">1</span>
+                      <span>Status Pasien</span>
+                    </label>
 
-                  <div className="inline-flex p-1 bg-slate-200/80 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setActiveRegistrationType('existing')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        activeRegistrationType === 'existing'
-                          ? 'bg-white text-indigo-700 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      ✓ Pasien Lama (Sudah Terdaftar)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveRegistrationType('new')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                        activeRegistrationType === 'new'
-                          ? 'bg-emerald-600 text-white shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      + Pasien Baru (Belum Terdaftar)
-                    </button>
+                    <div className="inline-flex p-1 bg-slate-200/80 rounded-xl self-start sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => setActiveRegistrationType('existing')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          activeRegistrationType === 'existing'
+                            ? 'bg-white text-indigo-700 shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        ✓ Pasien Lama (Sudah Terdaftar)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveRegistrationType('new')}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          activeRegistrationType === 'new'
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        + Pasien Baru (Belum Terdaftar)
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Option A: Pasien Lama */}
+                  {activeRegistrationType === 'existing' ? (
+                    <div className="space-y-3 pt-1">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Ketik untuk mencari nama hewan, nama owner, no HP, atau no RM..."
+                          value={pasienSearchTerm}
+                          onChange={(e) => setPasienSearchTerm(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                        />
+                      </div>
+
+                      <select
+                        value={selectedPasienId}
+                        onChange={(e) => setSelectedPasienId(e.target.value)}
+                        className="w-full text-xs p-2.5 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden font-medium"
+                        required
+                      >
+                        <option value="">-- Pilih Pasien Hewan Terdaftar ({selectablePasiens.length} Pasien Ditemukan) --</option>
+                        {selectablePasiens.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.kodePasien} | {p.namaHewan} ({p.jenisHewan} - {p.ras}) — Owner: {p.namaOwner} ({p.noHpOwner})
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Quick Preview Card of Selected Patient */}
+                      {selectedPasienDetail && (
+                        <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3 text-xs text-emerald-950 flex items-start justify-between">
+                          <div className="space-y-1">
+                            <div className="flex items-center space-x-2">
+                              <span className="font-extrabold text-slate-900 text-sm">{selectedPasienDetail.namaHewan}</span>
+                              <span className="px-2 py-0.5 bg-emerald-200/70 text-emerald-900 rounded-md text-[10px] font-bold">{selectedPasienDetail.jenisHewan}</span>
+                              <span className="text-slate-500 text-[11px]">({selectedPasienDetail.ras})</span>
+                            </div>
+                            <p className="text-slate-600 text-[11px]">
+                              Owner: <strong className="text-slate-800">{selectedPasienDetail.namaOwner}</strong> • Telp: {selectedPasienDetail.noHpOwner}
+                            </p>
+                            <p className="text-[10px] text-slate-500 truncate max-w-md">
+                              Alamat: {selectedPasienDetail.alamatOwner}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg">
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span>Data Terverifikasi</span>
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Option B: Form Input Pasien & Owner Baru Langsung
+                    <div className="space-y-3 pt-2">
+                      <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-[11px] text-amber-900 flex items-start space-x-2">
+                        <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <span>Data Pasien & Owner yang Anda input di bawah ini akan <strong>otomatis disimpan ke Master Data Pasien</strong> dan langsung didaftarkan ke antrian pelayanan.</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">Nama Pemilik / Owner *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Nama lengkap owner"
+                            value={newOwnerNama}
+                            onChange={(e) => setNewOwnerNama(e.target.value)}
+                            className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">No. HP / WhatsApp *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="08123456789"
+                            value={newOwnerHp}
+                            onChange={(e) => setNewOwnerHp(e.target.value)}
+                            className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                          />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">Alamat Owner</label>
+                          <input
+                            type="text"
+                            placeholder="Alamat domisili pemilik"
+                            value={newOwnerAlamat}
+                            onChange={(e) => setNewOwnerAlamat(e.target.value)}
+                            className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">Nama Hewan / Anabul *</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="Nama panggilan hewan"
+                            value={newHewanNama}
+                            onChange={(e) => setNewHewanNama(e.target.value)}
+                            className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">Jenis / Spesies Hewan *</label>
+                          <select
+                            value={newHewanJenis}
+                            onChange={(e) => setNewHewanJenis(e.target.value as JenisHewan)}
+                            className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                          >
+                            {speciesOptions.map((sp) => (
+                              <option key={sp} value={sp}>{sp}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">Ras / Breed</label>
+                          <input
+                            type="text"
+                            placeholder="Persia / Beagle / Kampung / dsb"
+                            value={newHewanRas}
+                            onChange={(e) => setNewHewanRas(e.target.value)}
+                            className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-700 mb-1">Jenis Kelamin</label>
+                          <select
+                            value={newHewanGender}
+                            onChange={(e) => setNewHewanGender(e.target.value as JenisKelaminHewan)}
+                            className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                          >
+                            <option value="Jantan">Jantan</option>
+                            <option value="Betina">Betina</option>
+                            <option value="Jantan Kastrasi">Jantan Kastrasi</option>
+                            <option value="Betina Steril">Betina Steril</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Option A: Pasien Lama */}
-                {activeRegistrationType === 'existing' ? (
-                  <div className="space-y-3 pt-1">
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder="Ketik untuk mencari nama hewan, nama owner, no HP, atau no RM..."
-                        value={pasienSearchTerm}
-                        onChange={(e) => setPasienSearchTerm(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                      />
-                    </div>
+                {/* STEP 2: PENENTUAN STATUS PERAWATAN (RAWAT JALAN VS RAWAT INAP) */}
+                <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+                  <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
+                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">2</span>
+                    <span>Tentukan Jenis Pelayanan / Perawatan *</span>
+                  </label>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Card Option: Rawat Jalan */}
+                    <label
+                      onClick={() => setSelectedJenisLayanan('Rawat Jalan')}
+                      className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-start space-x-3 ${
+                        selectedJenisLayanan === 'Rawat Jalan'
+                          ? 'border-emerald-500 bg-emerald-50/80 shadow-md shadow-emerald-100'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="jenisLayanan"
+                        checked={selectedJenisLayanan === 'Rawat Jalan'}
+                        onChange={() => setSelectedJenisLayanan('Rawat Jalan')}
+                        className="mt-1 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-1.5">
+                          <Stethoscope className="w-4 h-4 text-emerald-600" />
+                          <span className="font-extrabold text-slate-900 text-xs">🩺 Rawat Jalan (Poli)</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          Konsultasi dokter, pemeriksaan fisik, vaksinasi, pemberian resep, atau tindakan tanpa menginap.
+                        </p>
+                        <span className="inline-block text-[10px] text-emerald-700 font-bold bg-emerald-100/70 px-2 py-0.5 rounded">
+                          ➔ Otomatis masuk antrian Rawat Jalan
+                        </span>
+                      </div>
+                    </label>
+
+                    {/* Card Option: Rawat Inap */}
+                    <label
+                      onClick={() => setSelectedJenisLayanan('Rawat Inap')}
+                      className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-start space-x-3 ${
+                        selectedJenisLayanan === 'Rawat Inap'
+                          ? 'border-purple-500 bg-purple-50/80 shadow-md shadow-purple-100'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="jenisLayanan"
+                        checked={selectedJenisLayanan === 'Rawat Inap'}
+                        onChange={() => setSelectedJenisLayanan('Rawat Inap')}
+                        className="mt-1 text-purple-600 focus:ring-purple-500"
+                      />
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-1.5">
+                          <BedDouble className="w-4 h-4 text-purple-600" />
+                          <span className="font-extrabold text-slate-900 text-xs">🏥 Rawat Inap (Opname)</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          Perawatan intensif kandang, terapi infus, monitoring berkala, dan pengawasan medis 24 jam.
+                        </p>
+                        <span className="inline-block text-[10px] text-purple-700 font-bold bg-purple-100/70 px-2 py-0.5 rounded">
+                          ➔ Otomatis masuk antrian Rawat Inap
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Sub-inputs if Rawat Jalan */}
+                  {selectedJenisLayanan === 'Rawat Jalan' && (
+                    <div className="pt-2">
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Pilihan Layanan Rawat Jalan</label>
+                      <select
+                        value={layananSpesifik}
+                        onChange={(e) => setLayananSpesifik(e.target.value)}
+                        className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                      >
+                        <option value="Pemeriksaan Umum / Konsultasi">Pemeriksaan Umum / Konsultasi</option>
+                        <option value="Vaksinasi Rutin">Vaksinasi Rutin</option>
+                        <option value="Pemeriksaan Kulit & Dermatologi">Pemeriksaan Kulit & Dermatologi</option>
+                        <option value="Pemeriksaan Gigi / Scaling">Pemeriksaan Gigi / Scaling</option>
+                        <option value="Tindakan Bedah Minor Jalan">Tindakan Bedah Minor Jalan</option>
+                        <option value="Grooming Medis / Kutu & Jamur">Grooming Medis / Kutu & Jamur</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Sub-inputs if Rawat Inap */}
+                  {selectedJenisLayanan === 'Rawat Inap' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">No. / Ruang Kandang</label>
+                        <select
+                          value={noKandang}
+                          onChange={(e) => setNoKandang(e.target.value)}
+                          className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-purple-500 outline-none"
+                        >
+                          <option value="Kandang Kucing A-01">Kandang Kucing A-01</option>
+                          <option value="Kandang Kucing A-02">Kandang Kucing A-02</option>
+                          <option value="Kandang Kucing A-03">Kandang Kucing A-03</option>
+                          <option value="Kandang Anjing B-01">Kandang Anjing B-01</option>
+                          <option value="Kandang Anjing B-02">Kandang Anjing B-02</option>
+                          <option value="Kandang Isolasi C-01">Kandang Isolasi C-01 (Infeksius)</option>
+                          <option value="Kandang Khusus Observasi">Kandang Khusus Observasi</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Tarif Rawat Inap (Rp / Hari)</label>
+                        <input
+                          type="number"
+                          value={tarifPerHari}
+                          onChange={(e) => setTarifPerHari(Number(e.target.value) || 0)}
+                          className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-purple-500 outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* STEP 3: DOKTER PEMERIKSA & KELUHAN */}
+                <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+                  <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
+                    <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">3</span>
+                    <span>Dokter Penanggung Jawab & Keluhan Pasien *</span>
+                  </label>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Pilih Dokter Hewan *</label>
                     <select
-                      value={selectedPasienId}
-                      onChange={(e) => setSelectedPasienId(e.target.value)}
-                      className="w-full text-xs p-2.5 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-hidden font-medium"
+                      value={selectedDokterId}
+                      onChange={(e) => setSelectedDokterId(e.target.value)}
+                      className="w-full text-xs p-2.5 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
                       required
                     >
-                      <option value="">-- Pilih Pasien Hewan Terdaftar ({selectablePasiens.length} Pasien Ditemukan) --</option>
-                      {selectablePasiens.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.kodePasien} | {p.namaHewan} ({p.jenisHewan} - {p.ras}) — Owner: {p.namaOwner} ({p.noHpOwner})
+                      {dokterList.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.nama} — {d.spesialisasi}
                         </option>
                       ))}
                     </select>
-
-                    {/* Quick Preview Card of Selected Patient */}
-                    {selectedPasienDetail && (
-                      <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3 text-xs text-emerald-950 flex items-start justify-between">
-                        <div className="space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-extrabold text-slate-900 text-sm">{selectedPasienDetail.namaHewan}</span>
-                            <span className="px-2 py-0.5 bg-emerald-200/70 text-emerald-900 rounded-md text-[10px] font-bold">{selectedPasienDetail.jenisHewan}</span>
-                            <span className="text-slate-500 text-[11px]">({selectedPasienDetail.ras})</span>
-                          </div>
-                          <p className="text-slate-600 text-[11px]">
-                            Owner: <strong className="text-slate-800">{selectedPasienDetail.namaOwner}</strong> • Telp: {selectedPasienDetail.noHpOwner}
-                          </p>
-                          <p className="text-[10px] text-slate-500 truncate max-w-md">
-                            Alamat: {selectedPasienDetail.alamatOwner}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className="inline-flex items-center space-x-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg">
-                            <Check className="w-3 h-3 text-emerald-600" />
-                            <span>Data Terverifikasi</span>
-                          </span>
-                        </div>
-                      </div>
-                    )}
                   </div>
-                ) : (
-                  // Option B: Form Input Pasien & Owner Baru Langsung
-                  <div className="space-y-3 pt-2">
-                    <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-[11px] text-amber-900 flex items-start space-x-2">
-                      <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                      <span>Data Pasien & Owner yang Anda input di bawah ini akan <strong>otomatis disimpan ke Master Data Pasien</strong> dan langsung didaftarkan ke antrian pelayanan.</span>
-                    </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Nama Pemilik / Owner *</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="Nama lengkap owner"
-                          value={newOwnerNama}
-                          onChange={(e) => setNewOwnerNama(e.target.value)}
-                          className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">No. HP / WhatsApp *</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="08123456789"
-                          value={newOwnerHp}
-                          onChange={(e) => setNewOwnerHp(e.target.value)}
-                          className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        />
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Alamat Owner</label>
-                        <input
-                          type="text"
-                          placeholder="Alamat domisili pemilik"
-                          value={newOwnerAlamat}
-                          onChange={(e) => setNewOwnerAlamat(e.target.value)}
-                          className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Nama Hewan / Anabul *</label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="Nama panggilan hewan"
-                          value={newHewanNama}
-                          onChange={(e) => setNewHewanNama(e.target.value)}
-                          className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Jenis / Spesies Hewan *</label>
-                        <select
-                          value={newHewanJenis}
-                          onChange={(e) => setNewHewanJenis(e.target.value as JenisHewan)}
-                          className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        >
-                          {speciesOptions.map((sp) => (
-                            <option key={sp} value={sp}>{sp}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Ras / Breed</label>
-                        <input
-                          type="text"
-                          placeholder="Persia / Beagle / Kampung / dsb"
-                          value={newHewanRas}
-                          onChange={(e) => setNewHewanRas(e.target.value)}
-                          className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">Jenis Kelamin</label>
-                        <select
-                          value={newHewanGender}
-                          onChange={(e) => setNewHewanGender(e.target.value as JenisKelaminHewan)}
-                          className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        >
-                          <option value="Jantan">Jantan</option>
-                          <option value="Betina">Betina</option>
-                          <option value="Jantan Kastrasi">Jantan Kastrasi</option>
-                          <option value="Betina Steril">Betina Steril</option>
-                        </select>
-                      </div>
-                    </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Keluhan Utama / Gejala Awal</label>
+                    <textarea
+                      rows={3}
+                      value={keluhan}
+                      onChange={(e) => setKeluhan(e.target.value)}
+                      placeholder="Tuliskan keluhan yang dirasakan, contoh: Anabul muntah 2x, lemas, nafsu makan turun sejak 2 hari yang lalu..."
+                      className="w-full text-xs p-2.5 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    ></textarea>
                   </div>
-                )}
-              </div>
-
-              {/* STEP 2: PENENTUAN STATUS PERAWATAN (RAWAT JALAN VS RAWAT INAP) */}
-              <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-3">
-                <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
-                  <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">2</span>
-                  <span>Tentukan Jenis Pelayanan / Perawatan *</span>
-                </label>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Card Option: Rawat Jalan */}
-                  <label
-                    onClick={() => setSelectedJenisLayanan('Rawat Jalan')}
-                    className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-start space-x-3 ${
-                      selectedJenisLayanan === 'Rawat Jalan'
-                        ? 'border-emerald-500 bg-emerald-50/80 shadow-md shadow-emerald-100'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="jenisLayanan"
-                      checked={selectedJenisLayanan === 'Rawat Jalan'}
-                      onChange={() => setSelectedJenisLayanan('Rawat Jalan')}
-                      className="mt-1 text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-1.5">
-                        <Stethoscope className="w-4 h-4 text-emerald-600" />
-                        <span className="font-extrabold text-slate-900 text-xs">🩺 Rawat Jalan (Poli)</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500">
-                        Konsultasi dokter, pemeriksaan fisik, vaksinasi, pemberian resep, atau tindakan tanpa menginap.
-                      </p>
-                      <span className="inline-block text-[10px] text-emerald-700 font-bold bg-emerald-100/70 px-2 py-0.5 rounded">
-                        ➔ Otomatis masuk antrian Rawat Jalan
-                      </span>
-                    </div>
-                  </label>
-
-                  {/* Card Option: Rawat Inap */}
-                  <label
-                    onClick={() => setSelectedJenisLayanan('Rawat Inap')}
-                    className={`p-3.5 rounded-2xl border-2 cursor-pointer transition-all flex items-start space-x-3 ${
-                      selectedJenisLayanan === 'Rawat Inap'
-                        ? 'border-purple-500 bg-purple-50/80 shadow-md shadow-purple-100'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="jenisLayanan"
-                      checked={selectedJenisLayanan === 'Rawat Inap'}
-                      onChange={() => setSelectedJenisLayanan('Rawat Inap')}
-                      className="mt-1 text-purple-600 focus:ring-purple-500"
-                    />
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-1.5">
-                        <BedDouble className="w-4 h-4 text-purple-600" />
-                        <span className="font-extrabold text-slate-900 text-xs">🏥 Rawat Inap (Opname)</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500">
-                        Perawatan intensif kandang, terapi infus, monitoring berkala, dan pengawasan medis 24 jam.
-                      </p>
-                      <span className="inline-block text-[10px] text-purple-700 font-bold bg-purple-100/70 px-2 py-0.5 rounded">
-                        ➔ Otomatis masuk antrian Rawat Inap
-                      </span>
-                    </div>
-                  </label>
-                </div>
-
-                {/* Sub-inputs if Rawat Jalan */}
-                {selectedJenisLayanan === 'Rawat Jalan' && (
-                  <div className="pt-2">
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Pilihan Layanan Rawat Jalan</label>
-                    <select
-                      value={layananSpesifik}
-                      onChange={(e) => setLayananSpesifik(e.target.value)}
-                      className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                    >
-                      <option value="Pemeriksaan Umum / Konsultasi">Pemeriksaan Umum / Konsultasi</option>
-                      <option value="Vaksinasi Rutin">Vaksinasi Rutin</option>
-                      <option value="Pemeriksaan Kulit & Dermatologi">Pemeriksaan Kulit & Dermatologi</option>
-                      <option value="Pemeriksaan Gigi / Scaling">Pemeriksaan Gigi / Scaling</option>
-                      <option value="Tindakan Bedah Minor Jalan">Tindakan Bedah Minor Jalan</option>
-                      <option value="Grooming Medis / Kutu & Jamur">Grooming Medis / Kutu & Jamur</option>
-                    </select>
-                  </div>
-                )}
-
-                {/* Sub-inputs if Rawat Inap */}
-                {selectedJenisLayanan === 'Rawat Inap' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">No. / Ruang Kandang</label>
-                      <select
-                        value={noKandang}
-                        onChange={(e) => setNoKandang(e.target.value)}
-                        className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-purple-500 outline-none"
-                      >
-                        <option value="Kandang Kucing A-01">Kandang Kucing A-01</option>
-                        <option value="Kandang Kucing A-02">Kandang Kucing A-02</option>
-                        <option value="Kandang Kucing A-03">Kandang Kucing A-03</option>
-                        <option value="Kandang Anjing B-01">Kandang Anjing B-01</option>
-                        <option value="Kandang Anjing B-02">Kandang Anjing B-02</option>
-                        <option value="Kandang Isolasi C-01">Kandang Isolasi C-01 (Infeksius)</option>
-                        <option value="Kandang Khusus Observasi">Kandang Khusus Observasi</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-700 mb-1">Tarif Rawat Inap (Rp / Hari)</label>
-                      <input
-                        type="number"
-                        value={tarifPerHari}
-                        onChange={(e) => setTarifPerHari(Number(e.target.value) || 0)}
-                        className="w-full text-xs p-2 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-purple-500 outline-none"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* STEP 3: DOKTER PEMERIKSA & KELUHAN */}
-              <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 space-y-3">
-                <label className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
-                  <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">3</span>
-                  <span>Dokter Penanggung Jawab & Keluhan Pasien *</span>
-                </label>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Pilih Dokter Hewan *</label>
-                  <select
-                    value={selectedDokterId}
-                    onChange={(e) => setSelectedDokterId(e.target.value)}
-                    className="w-full text-xs p-2.5 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                    required
-                  >
-                    {dokterList.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.nama} — {d.spesialisasi}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Keluhan Utama / Gejala Awal</label>
-                  <textarea
-                    rows={3}
-                    value={keluhan}
-                    onChange={(e) => setKeluhan(e.target.value)}
-                    placeholder="Tuliskan keluhan yang dirasakan, contoh: Anabul muntah 2x, lemas, nafsu makan turun sejak 2 hari yang lalu..."
-                    className="w-full text-xs p-2.5 bg-white rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
-                  ></textarea>
                 </div>
               </div>
 
-              {/* Modal Footer Buttons */}
-              <div className="pt-2 flex items-center justify-end space-x-3">
+              {/* Fixed Modal Footer Buttons */}
+              <div className="p-4 sm:p-5 border-t border-slate-100 bg-slate-50/95 flex items-center justify-end space-x-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}

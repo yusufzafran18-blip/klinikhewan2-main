@@ -154,13 +154,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         },
         {
           id: 'laporan',
-          label: 'Laporan Keuangan',
+          label: 'Laporan Keuangan & Laba Rugi',
           icon: FileSpreadsheet,
           roles: ['super_admin', 'admin'],
         },
         {
           id: 'laporan_laba',
-          label: 'Laporan Laba Penjualan',
+          label: 'Laporan Penjualan & Laba Produk',
           icon: TrendingUp,
           roles: ['super_admin', 'admin'],
         },

@@ -254,7 +254,11 @@ export function App() {
 
   // Handlers for Rekam Medis
   const handleSaveRekamMedis = async (rm: RekamMedis) => {
-    const updatedRM = [rm, ...rekamMedisList];
+    const existingIndex = rekamMedisList.findIndex((r) => r.id === rm.id);
+    const updatedRM = existingIndex >= 0
+      ? rekamMedisList.map((r) => (r.id === rm.id ? rm : r))
+      : [rm, ...rekamMedisList];
+
     try {
       await storageService.saveRekamMedisList(updatedRM);
       setRekamMedisList(updatedRM);
@@ -268,8 +272,8 @@ export function App() {
       handleUpdatePendaftaranStatus(rm.pendaftaranId, 'Selesai');
     }
 
-    // If plan specifies Rawat Inap, auto create RawatInap record
-    if (rm.plan.statusLanjutan === 'Rawat Inap') {
+    // If plan specifies Rawat Inap, auto create RawatInap record if new
+    if (existingIndex < 0 && rm.plan.statusLanjutan === 'Rawat Inap') {
       const newInap: RawatInap = {
         id: 'inap-' + Date.now(),
         pasienId: rm.pasienId,
@@ -322,24 +326,39 @@ export function App() {
     if (!items || items.length === 0) return true;
 
     const insufficient: string[] = [];
-    const updatedBarang = [...barangList];
+    const latestBarang = storageService.getBarangList();
+    const updatedBarang = (latestBarang && latestBarang.length > 0) ? [...latestBarang] : [...barangList];
     const newMutations: MutasiStok[] = [];
     const now = new Date();
     const dateStr = options?.tanggal || now.toISOString().slice(0, 10);
     const timeStr = now.toTimeString().slice(0, 5);
 
+    const findBarangIndex = (item: { barangId?: string; nama?: string }) => {
+      if (item.barangId) {
+        const directIdx = updatedBarang.findIndex((b) => b.id === item.barangId);
+        if (directIdx >= 0) return directIdx;
+      }
+      if (item.nama) {
+        const target = (item.nama || '').toLowerCase().trim();
+        const exactIdx = updatedBarang.findIndex(
+          (b) => (b.namaBarang && b.namaBarang.toLowerCase().trim() === target) ||
+                 (b.kodeBarang && b.kodeBarang.toLowerCase().trim() === target)
+        );
+        if (exactIdx >= 0) return exactIdx;
+
+        const subIdx = updatedBarang.findIndex(
+          (b) => (b.namaBarang && b.namaBarang.toLowerCase().includes(target)) ||
+                 (b.namaBarang && target.includes(b.namaBarang.toLowerCase()))
+        );
+        if (subIdx >= 0) return subIdx;
+      }
+      return -1;
+    };
+
     items.forEach((item) => {
       if (!item || item.jumlah <= 0) return;
 
-      const matchIndex = updatedBarang.findIndex((barang) => {
-        if (item.barangId) return barang.id === item.barangId;
-        if (item.nama) {
-          const target = item.nama.toLowerCase().trim();
-          return barang.namaBarang.toLowerCase().trim() === target ||
-                 barang.namaBarang.toLowerCase().includes(target);
-        }
-        return false;
-      });
+      const matchIndex = findBarangIndex(item);
 
       if (matchIndex < 0) {
         insufficient.push(item.nama || 'Barang tidak terdaftar');
@@ -360,15 +379,7 @@ export function App() {
     items.forEach((item, idx) => {
       if (!item || item.jumlah <= 0) return;
 
-      const matchIndex = updatedBarang.findIndex((barang) => {
-        if (item.barangId) return barang.id === item.barangId;
-        if (item.nama) {
-          const target = item.nama.toLowerCase().trim();
-          return barang.namaBarang.toLowerCase().trim() === target ||
-                 barang.namaBarang.toLowerCase().includes(target);
-        }
-        return false;
-      });
+      const matchIndex = findBarangIndex(item);
 
       if (matchIndex >= 0) {
         const b = updatedBarang[matchIndex];
@@ -421,12 +432,11 @@ export function App() {
     await storageService.saveBarangList(updatedBarang);
 
     if (newMutations.length > 0) {
-      const updatedMutasi = [...newMutations, ...mutasiStokList];
+      const currentMutasi = storageService.getMutasiStokList() || [];
+      const updatedMutasi = [...newMutations, ...currentMutasi];
       setMutasiStokList(updatedMutasi);
       await storageService.saveMutasiStokList(updatedMutasi);
     }
-
-    return true;
   };
 
   const handleRevertInventory = async (
@@ -435,24 +445,39 @@ export function App() {
   ) => {
     if (!items || items.length === 0) return;
 
-    const updatedBarang = [...barangList];
+    const latestBarang = storageService.getBarangList();
+    const updatedBarang = (latestBarang && latestBarang.length > 0) ? [...latestBarang] : [...barangList];
     const newMutations: MutasiStok[] = [];
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 10);
     const timeStr = now.toTimeString().slice(0, 5);
 
+    const findBarangIndex = (item: { barangId?: string; nama?: string }) => {
+      if (item.barangId) {
+        const directIdx = updatedBarang.findIndex((b) => b.id === item.barangId);
+        if (directIdx >= 0) return directIdx;
+      }
+      if (item.nama) {
+        const target = (item.nama || '').toLowerCase().trim();
+        const exactIdx = updatedBarang.findIndex(
+          (b) => (b.namaBarang && b.namaBarang.toLowerCase().trim() === target) ||
+                 (b.kodeBarang && b.kodeBarang.toLowerCase().trim() === target)
+        );
+        if (exactIdx >= 0) return exactIdx;
+
+        const subIdx = updatedBarang.findIndex(
+          (b) => (b.namaBarang && b.namaBarang.toLowerCase().includes(target)) ||
+                 (b.namaBarang && target.includes(b.namaBarang.toLowerCase()))
+        );
+        if (subIdx >= 0) return subIdx;
+      }
+      return -1;
+    };
+
     items.forEach((item, idx) => {
       if (!item || item.jumlah <= 0) return;
 
-      const matchIndex = updatedBarang.findIndex((barang) => {
-        if (item.barangId) return barang.id === item.barangId;
-        if (item.nama) {
-          const target = item.nama.toLowerCase().trim();
-          return barang.namaBarang.toLowerCase().trim() === target ||
-                 barang.namaBarang.toLowerCase().includes(target);
-        }
-        return false;
-      });
+      const matchIndex = findBarangIndex(item);
 
       if (matchIndex >= 0) {
         const b = updatedBarang[matchIndex];
@@ -489,7 +514,8 @@ export function App() {
     await storageService.saveBarangList(updatedBarang);
 
     if (newMutations.length > 0) {
-      const updatedMutasi = [...newMutations, ...mutasiStokList];
+      const currentMutasi = storageService.getMutasiStokList() || [];
+      const updatedMutasi = [...newMutations, ...currentMutasi];
       setMutasiStokList(updatedMutasi);
       await storageService.saveMutasiStokList(updatedMutasi);
     }
@@ -749,9 +775,9 @@ export function App() {
     if (trx.typeTransaksi === 'Penjualan Direct (PetShop)' || (!trx.rawatInapId && !trx.rekamMedisId && trx.typeTransaksi !== 'Rawat Inap' && trx.typeTransaksi !== 'Rekam Medis')) {
       if (trx.status === 'Lunas') {
         const itemsToDeduct = (trx.items || []).map((it) => ({
-          barangId: it.id,
+          barangId: (it as any).barangId || (it.id && !it.id.startsWith('pos-item-') && !it.id.startsWith('trx-item-') ? it.id : undefined),
           nama: it.namaItem,
-          jumlah: it.jumlah || 1,
+          jumlah: Number(it.jumlah) || 1,
         }));
         if (itemsToDeduct.length > 0) {
           await handleUseInventory(itemsToDeduct, {
@@ -766,7 +792,8 @@ export function App() {
     }
   };
 
-  const handleVoidTransaksi = (id: string, alasan: string, user: string) => {
+  const handleVoidTransaksi = async (id: string, alasan: string, user: string) => {
+    const targetTrx = transaksiList.find((t) => t.id === id);
     const updated = transaksiList.map((t) => t.id === id ? {
       ...t,
       status: 'Dibatalkan' as const,
@@ -774,7 +801,25 @@ export function App() {
       dibatalkanOleh: user,
     } : t);
     setTransaksiList(updated);
-    storageService.saveTransaksiList(updated);
+    await storageService.saveTransaksiList(updated);
+
+    // If a direct POS sale was voided, return stock to inventory
+    if (targetTrx && targetTrx.status === 'Lunas') {
+      if (targetTrx.typeTransaksi === 'Penjualan Direct (PetShop)' || (!targetTrx.rawatInapId && !targetTrx.rekamMedisId && targetTrx.typeTransaksi !== 'Rawat Inap' && targetTrx.typeTransaksi !== 'Rekam Medis')) {
+        const itemsToRevert = (targetTrx.items || []).map((it) => ({
+          barangId: (it as any).barangId || (it.id && !it.id.startsWith('pos-item-') && !it.id.startsWith('trx-item-') ? it.id : undefined),
+          nama: it.namaItem,
+          jumlah: Number(it.jumlah) || 1,
+        }));
+        if (itemsToRevert.length > 0) {
+          await handleRevertInventory(itemsToRevert, {
+            referensi: targetTrx.noNota,
+            keterangan: `Pembatalan Transaksi POS (${targetTrx.noNota}) - Alasan: ${alasan || '-'}`,
+            petugas: user || activeUser?.nama || 'Petugas Kasir',
+          });
+        }
+      }
+    }
   };
 
   // Cancellation handlers
@@ -823,21 +868,124 @@ export function App() {
     await storageService.saveRekamMedisList(updated);
   };
 
+  const handleSavePembelian = async (po: PembelianSupplier) => {
+    const exists = pembelianList.some((p) => p.id === po.id);
+    const updated = exists
+      ? pembelianList.map((p) => p.id === po.id ? po : p)
+      : [po, ...pembelianList];
+    const shouldAddStock = po.status === 'Selesai';
+    const newMutations: MutasiStok[] = [];
+    const now = new Date();
+    const dateStr = po.tanggal || now.toISOString().slice(0, 10);
+    const timeStr = now.toTimeString().slice(0, 5);
+
+    let updatedBarang = [...barangList];
+    if (shouldAddStock) {
+      (po.items || []).forEach((item, idx) => {
+        const itemNama = (item.namaBarang || (item as any).nama || '').toLowerCase().trim();
+        const bIdx = updatedBarang.findIndex((b) => (b.id && item.barangId && b.id === item.barangId) || (itemNama && b.namaBarang && b.namaBarang.toLowerCase().trim() === itemNama));
+        if (bIdx >= 0) {
+          const b = updatedBarang[bIdx];
+          const prevStok = Number(b.stokCurrent ?? b.stok ?? 0);
+          const nextStok = prevStok + (Number(item.jumlah) || 0);
+          const itemHarga = Number(item.hargaBeli) || 0;
+          updatedBarang[bIdx] = {
+            ...b,
+            stokCurrent: nextStok,
+            stok: nextStok,
+            hargaBeli: itemHarga > 0 ? itemHarga : b.hargaBeli,
+          };
+          const supplierObj = supplierList.find((s) => s.id === po.namaSupplier || s.namaSupplier === po.namaSupplier);
+          const supplierName = supplierObj?.namaSupplier || po.namaSupplier || 'Supplier';
+          newMutations.push({
+            id: `mutasi-po-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+            barangId: b.id,
+            kodeBarang: b.kodeBarang,
+            namaBarang: b.namaBarang,
+            kategori: b.kategori,
+            satuan: b.satuan,
+            tanggal: dateStr,
+            waktu: timeStr,
+            jenis: 'Masuk',
+            jumlah: Number(item.jumlah) || 0,
+            saldoSebelum: prevStok,
+            saldoSetelah: nextStok,
+            keterangan: `Penerimaan Pembelian Supplier Faktur: ${po.noFaktur || po.nomorPO || '-'} (${supplierName})`,
+            referensi: po.noFaktur || po.nomorPO || 'PO',
+            tipeReferensi: 'Pembelian',
+            petugas: activeUser?.nama || 'Petugas Pengadaan',
+          });
+        }
+      });
+    }
+
+    await storageService.savePembelianList(updated);
+    if (shouldAddStock) {
+      await storageService.saveBarangList(updatedBarang);
+      if (newMutations.length > 0) {
+        const currentMutasi = storageService.getMutasiStokList() || [];
+        const updatedMutasi = [...newMutations, ...currentMutasi];
+        setMutasiStokList(updatedMutasi);
+        await storageService.saveMutasiStokList(updatedMutasi);
+      }
+    }
+    setPembelianList(updated);
+    if (shouldAddStock) setBarangList(updatedBarang);
+  };
+
   const handleCancelPembelian = async (poId: string, alasan: string, user: string, revertStock: boolean = true) => {
     const target = pembelianList.find((p) => p.id === poId);
     if (!target) return;
 
     // If the purchase already added stock, revert it only when requested
     if (revertStock && target.status === 'Selesai') {
-      const updatedBarang = [...barangList];
-      (target.items || []).forEach((it) => {
-        const idx = updatedBarang.findIndex((b) => b.id === it.barangId || b.namaBarang === it.namaBarang);
-        if (idx >= 0) {
-          updatedBarang[idx] = { ...updatedBarang[idx], stokCurrent: Math.max(0, (updatedBarang[idx].stokCurrent || 0) - (it.jumlah || 0)) };
+      const latestBarang = storageService.getBarangList();
+      const updatedBarang = (latestBarang && latestBarang.length > 0) ? [...latestBarang] : [...barangList];
+      const newMutations: MutasiStok[] = [];
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+      const timeStr = now.toTimeString().slice(0, 5);
+
+      (target.items || []).forEach((it, idx) => {
+        const itNama = (it.namaBarang || (it as any).nama || '').toLowerCase().trim();
+        const bIdx = updatedBarang.findIndex((b) => (b.id && it.barangId && b.id === it.barangId) || (itNama && b.namaBarang && b.namaBarang.toLowerCase().trim() === itNama));
+        if (bIdx >= 0) {
+          const b = updatedBarang[bIdx];
+          const prevStok = Number(b.stokCurrent ?? b.stok ?? 0);
+          const nextStok = Math.max(0, prevStok - (Number(it.jumlah) || 0));
+          updatedBarang[bIdx] = {
+            ...b,
+            stokCurrent: nextStok,
+            stok: nextStok,
+          };
+          newMutations.push({
+            id: `mutasi-batal-po-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
+            barangId: b.id,
+            kodeBarang: b.kodeBarang,
+            namaBarang: b.namaBarang,
+            kategori: b.kategori,
+            satuan: b.satuan,
+            tanggal: dateStr,
+            waktu: timeStr,
+            jenis: 'Keluar',
+            jumlah: Number(it.jumlah) || 0,
+            saldoSebelum: prevStok,
+            saldoSetelah: nextStok,
+            keterangan: `Pembatalan Faktur PO: ${target.noFaktur || target.nomorPO || '-'} (Alasan: ${alasan})`,
+            referensi: target.noFaktur || target.nomorPO || 'PO-BATAL',
+            tipeReferensi: 'Pembelian',
+            petugas: user || activeUser?.nama || 'Petugas Pengadaan',
+          });
         }
       });
       setBarangList(updatedBarang);
       await storageService.saveBarangList(updatedBarang);
+      if (newMutations.length > 0) {
+        const currentMutasi = storageService.getMutasiStokList() || [];
+        const updatedMutasi = [...newMutations, ...currentMutasi];
+        setMutasiStokList(updatedMutasi);
+        await storageService.saveMutasiStokList(updatedMutasi);
+      }
     }
 
     const updatedPo = pembelianList.map((p) => p.id === poId ? { ...p, status: 'Dibatalkan' as const, alasanPembatalan: alasan, dibatalkanOleh: user } : p);
@@ -1112,9 +1260,13 @@ export function App() {
                     tindakanList={tindakanList}
                     pendaftaranList={pendaftaranList}
                     klinik={klinik}
+                    transaksiList={transaksiList}
                     activePendaftaran={activePendaftaranForSOAP}
                     onSaveRekamMedis={handleSaveRekamMedis}
                     onClearActivePendaftaran={() => setActivePendaftaranForSOAP(null)}
+                    onUseInventory={handleUseInventory}
+                    onRevertInventory={handleRevertInventory}
+                    onSaveTransaksi={handleSaveTransaksi}
                   />
                 )}
 
@@ -1136,9 +1288,12 @@ export function App() {
                       setActiveTab('kasir');
                     }}
                     onSaveRekamMedis={handleSaveRekamMedis}
-                  onCancelRekamMedis={handleCancelRekamMedis}
-                  onDeleteRekamMedis={handleDeleteRekamMedis}
-                  activeUserName={activeUser?.nama}
+                    onCancelRekamMedis={handleCancelRekamMedis}
+                    onDeleteRekamMedis={handleDeleteRekamMedis}
+                    onUseInventory={handleUseInventory}
+                    onRevertInventory={handleRevertInventory}
+                    onSaveTransaksi={handleSaveTransaksi}
+                    activeUserName={activeUser?.nama}
                   />
                 )}
 
@@ -1184,6 +1339,12 @@ export function App() {
                     klinik={klinik}
                     settings={settings}
                     activeUser={activeUser}
+                    barangList={barangList}
+                    tindakanList={tindakanList}
+                    onSaveRawatInap={handleSaveRawatInap}
+                    onSaveRekamMedis={handleSaveRekamMedis}
+                    onUseInventory={handleUseInventory}
+                    onRevertInventory={handleRevertInventory}
                     onSaveTransaksi={handleSaveTransaksi}
                     onVoidTransaksi={handleVoidTransaksi}
                   />
@@ -1220,62 +1381,10 @@ export function App() {
                     pembelianList={pembelianList}
                     supplierList={supplierList}
                     barangList={barangList}
-                    onSavePembelian={async (po) => {
-                      const updated = [po, ...pembelianList];
-                      const shouldAddStock = po.status === 'Selesai';
-                      const newMutations: MutasiStok[] = [];
-                      const now = new Date();
-                      const dateStr = po.tanggal || now.toISOString().slice(0, 10);
-                      const timeStr = now.toTimeString().slice(0, 5);
-
-                      let updatedBarang = [...barangList];
-                      if (shouldAddStock) {
-                        po.items.forEach((item, idx) => {
-                          const bIdx = updatedBarang.findIndex((b) => b.id === item.barangId || b.namaBarang === item.namaBarang);
-                          if (bIdx >= 0) {
-                            const b = updatedBarang[bIdx];
-                            const prevStok = Number(b.stokCurrent || 0);
-                            const nextStok = prevStok + item.jumlah;
-                            updatedBarang[bIdx] = {
-                              ...b,
-                              stokCurrent: nextStok,
-                            };
-                            newMutations.push({
-                              id: `mutasi-po-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 6)}`,
-                              barangId: b.id,
-                              kodeBarang: b.kodeBarang,
-                              namaBarang: b.namaBarang,
-                              kategori: b.kategori,
-                              satuan: b.satuan,
-                              tanggal: dateStr,
-                              waktu: timeStr,
-                              jenis: 'Masuk',
-                              jumlah: item.jumlah,
-                              saldoSebelum: prevStok,
-                              saldoSetelah: nextStok,
-                              keterangan: `Penerimaan Pembelian Supplier PO/Faktur: ${po.noFaktur || po.nomorPO || '-'} (${po.namaSupplier || 'Supplier'})`,
-                              referensi: po.noFaktur || po.nomorPO || 'PO',
-                              tipeReferensi: 'Pembelian',
-                              petugas: activeUser?.nama || 'Petugas Pengadaan',
-                            });
-                          }
-                        });
-                      }
-
-                      await storageService.savePembelianList(updated);
-                      if (shouldAddStock) {
-                        await storageService.saveBarangList(updatedBarang);
-                        if (newMutations.length > 0) {
-                          const updatedMutasi = [...newMutations, ...mutasiStokList];
-                          setMutasiStokList(updatedMutasi);
-                          await storageService.saveMutasiStokList(updatedMutasi);
-                        }
-                      }
-                      setPembelianList(updated);
-                      if (shouldAddStock) setBarangList(updatedBarang);
-                    }}
-                  onCancelPembelian={handleCancelPembelian}
-                  activeUserName={activeUser?.nama}
+                    klinik={klinik}
+                    onSavePembelian={handleSavePembelian}
+                    onCancelPembelian={handleCancelPembelian}
+                    activeUserName={activeUser?.nama}
                   />
                 )}
 
@@ -1309,15 +1418,23 @@ export function App() {
                 {activeTab === 'laporan' && (
                   <LaporanKeuanganView
                     transaksiList={transaksiList}
+                    barangList={barangList}
+                    pembelianList={pembelianList}
+                    tindakanList={tindakanList}
+                    klinik={klinik}
                     onNavigateToLaba={() => setActiveTab('laporan_laba')}
                   />
                 )}
 
-                {activeTab === 'laporan_laba' && (
+                {(activeTab === 'laporan_laba' || (activeTab as any) === 'laporan_penjualan') && (
                   <LaporanLabaPenjualanView
                     transaksiList={transaksiList}
                     barangList={barangList}
                     pakanList={pakanList}
+                    tindakanList={tindakanList}
+                    pembelianList={pembelianList}
+                    klinik={klinik}
+                    onNavigateToKeuangan={() => setActiveTab('laporan')}
                   />
                 )}
 

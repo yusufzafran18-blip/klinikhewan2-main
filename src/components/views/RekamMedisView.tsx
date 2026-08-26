@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   RekamMedis, Pasien, Dokter, Barang, Tindakan, Pendaftaran,
-  ObatRacikan, ResepItem, TindakanItem, DataKlinik, AlkesUsageItem
+  ObatRacikan, ResepItem, TindakanItem, DataKlinik, AlkesUsageItem, Transaksi
 } from '../../types';
 import {
   Stethoscope, Plus, Trash2, Printer, Search, FileText,
-  Upload, CheckCircle, ArrowLeft, Pill, HeartPulse, Camera, Syringe, Package
+  Upload, CheckCircle, ArrowLeft, Pill, HeartPulse, Camera, Syringe, Package, X, DollarSign
 } from 'lucide-react';
 import { printRekamMedisPDF } from '../../services/pdf';
 import { OutpatientA4ReceiptModal } from '../common/OutpatientA4ReceiptModal';
@@ -18,9 +18,13 @@ interface RekamMedisViewProps {
   tindakanList: Tindakan[];
   pendaftaranList: Pendaftaran[];
   klinik: DataKlinik;
+  transaksiList?: Transaksi[];
   activePendaftaran?: Pendaftaran | null;
   onSaveRekamMedis: (rm: RekamMedis) => void | Promise<void>;
   onClearActivePendaftaran: () => void;
+  onUseInventory?: (items: { barangId?: string; nama?: string; jumlah: number }[], options?: any) => Promise<boolean | void> | boolean | void;
+  onRevertInventory?: (items: { barangId?: string; nama?: string; jumlah: number }[], options?: any) => Promise<boolean | void> | boolean | void;
+  onSaveTransaksi?: (trx: Transaksi) => void | Promise<void>;
 }
 
 export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
@@ -31,9 +35,13 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
   tindakanList = [],
   pendaftaranList = [],
   klinik,
+  transaksiList = [],
   activePendaftaran,
   onSaveRekamMedis,
   onClearActivePendaftaran,
+  onUseInventory,
+  onRevertInventory,
+  onSaveTransaksi,
 }) => {
   const [showFormModal, setShowFormModal] = useState(!!activePendaftaran);
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,6 +76,11 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
   const [selectedAlkesItems, setSelectedAlkesItems] = useState<AlkesUsageItem[]>([]);
   const [selectedBarangItems, setSelectedBarangItems] = useState<ResepItem[]>([]);
   
+  // Custom Tindakan State
+  const [showCustomTindakanInput, setShowCustomTindakanInput] = useState(false);
+  const [customTindakanNama, setCustomTindakanNama] = useState('');
+  const [customTindakanTarif, setCustomTindakanTarif] = useState(50000);
+
   // Racikan State
   const [racikanList, setRacikanList] = useState<ObatRacikan[]>([]);
   const [showRacikanBuilder, setShowRacikanBuilder] = useState(false);
@@ -82,6 +95,76 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
   // Upload Foto
   const [lampiranList, setLampiranList] = useState<{ nama: string; url: string; tipe: 'Foto' | 'X-Ray' | 'Hasil Lab' | 'Dokumen' }[]>([]);
 
+  // Sync state whenever activePendaftaran changes
+  useEffect(() => {
+    if (activePendaftaran) {
+      setSelectedPasienId(activePendaftaran.pasienId || pasienList[0]?.id || '');
+      setSelectedDokterId(activePendaftaran.dokterId || dokterList[0]?.id || '');
+      setKeluhan(activePendaftaran.keluhanUtama || '');
+      setShowFormModal(true);
+
+      // Auto-match or populate Jasa Pelayanan / Pemeriksaan Dokter
+      const chosenService = activePendaftaran.layananDipilih || '';
+      const matchedTindakan = tindakanList.find(
+        (t) =>
+          (chosenService && t.namaTindakan.toLowerCase().includes(chosenService.toLowerCase())) ||
+          (chosenService && chosenService.toLowerCase().includes(t.namaTindakan.toLowerCase()))
+      ) || tindakanList.find(
+        (t) => t.kategori === 'Pemeriksaan' || t.namaTindakan.toLowerCase().includes('pemeriksaan') || t.namaTindakan.toLowerCase().includes('konsultasi')
+      ) || tindakanList[0];
+
+      if (matchedTindakan) {
+        setSelectedTindakanItems([
+          {
+            tindakanId: matchedTindakan.id,
+            namaTindakan: matchedTindakan.namaTindakan,
+            tarif: Number(matchedTindakan.tarif || 50000),
+            keterangan: 'Jasa Pemeriksaan & Konsultasi Dokter',
+          },
+        ]);
+      } else {
+        setSelectedTindakanItems([
+          {
+            tindakanId: 'tdk-default',
+            namaTindakan: 'Pemeriksaan & Konsultasi Dokter',
+            tarif: 50000,
+            keterangan: 'Pemeriksaan klinis umum dokter hewan',
+          },
+        ]);
+      }
+    }
+  }, [activePendaftaran, tindakanList]);
+
+  // Open modal with default Pemeriksaan & Konsultasi if empty
+  const handleOpenNewSOAP = () => {
+    setShowFormModal(true);
+    if (selectedTindakanItems.length === 0) {
+      const defaultT = tindakanList.find(
+        (t) => t.kategori === 'Pemeriksaan' || t.namaTindakan.toLowerCase().includes('pemeriksaan') || t.namaTindakan.toLowerCase().includes('konsultasi')
+      ) || tindakanList[0];
+
+      if (defaultT) {
+        setSelectedTindakanItems([
+          {
+            tindakanId: defaultT.id,
+            namaTindakan: defaultT.namaTindakan,
+            tarif: Number(defaultT.tarif || 50000),
+            keterangan: 'Jasa Pemeriksaan & Konsultasi Dokter',
+          },
+        ]);
+      } else {
+        setSelectedTindakanItems([
+          {
+            tindakanId: 'tdk-default',
+            namaTindakan: 'Pemeriksaan & Konsultasi Dokter',
+            tarif: 50000,
+            keterangan: 'Pemeriksaan klinis umum dokter hewan',
+          },
+        ]);
+      }
+    }
+  };
+
   // Add Item Helpers
   const handleAddTindakan = (tindakanId: string) => {
     const t = tindakanList.find((item) => item.id === tindakanId);
@@ -89,12 +172,34 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
     if (selectedTindakanItems.some((item) => item.tindakanId === tindakanId)) return;
     setSelectedTindakanItems([
       ...selectedTindakanItems,
-      { tindakanId: t.id, namaTindakan: t.namaTindakan, tarif: t.tarif }
+      { tindakanId: t.id, namaTindakan: t.namaTindakan, tarif: Number(t.tarif || 0) }
     ]);
   };
 
-  const handleRemoveTindakan = (tindakanId: string) => {
-    setSelectedTindakanItems(selectedTindakanItems.filter((i) => i.tindakanId !== tindakanId));
+  const handleUpdateTarifTindakan = (index: number, newTarif: number) => {
+    const updated = [...selectedTindakanItems];
+    updated[index].tarif = Number(newTarif) || 0;
+    setSelectedTindakanItems(updated);
+  };
+
+  const handleAddCustomTindakan = () => {
+    if (!customTindakanNama.trim()) return;
+    setSelectedTindakanItems([
+      ...selectedTindakanItems,
+      {
+        tindakanId: 'tdk-custom-' + Date.now(),
+        namaTindakan: customTindakanNama.trim(),
+        tarif: Number(customTindakanTarif) || 0,
+        keterangan: 'Jasa / Tindakan Medis Dokter',
+      },
+    ]);
+    setCustomTindakanNama('');
+    setCustomTindakanTarif(50000);
+    setShowCustomTindakanInput(false);
+  };
+
+  const handleRemoveTindakan = (index: number) => {
+    setSelectedTindakanItems(selectedTindakanItems.filter((_, i) => i !== index));
   };
 
   const handleAddResepObat = (barangId: string) => {
@@ -108,8 +213,8 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
         jumlah: 1,
         dosis: '2x1 tablet',
         aturanPakai: 'Sesudah makan',
-        hargaSatuan: b.hargaJual,
-        subtotal: b.hargaJual,
+        hargaSatuan: Number(b.hargaJual || 0),
+        subtotal: Number(b.hargaJual || 0),
       }
     ]);
   };
@@ -137,8 +242,8 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
         namaAlkes: b.namaBarang,
         jumlah: 1,
         satuan: b.satuan || 'Pcs',
-        hargaSatuan: b.hargaJual,
-        subtotal: b.hargaJual,
+        hargaSatuan: Number(b.hargaJual || 0),
+        subtotal: Number(b.hargaJual || 0),
       }
     ]);
   };
@@ -166,8 +271,8 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
         jumlah: 1,
         dosis: '1x sehari',
         aturanPakai: b.satuan || 'Pcs',
-        hargaSatuan: b.hargaJual,
-        subtotal: b.hargaJual,
+        hargaSatuan: Number(b.hargaJual || 0),
+        subtotal: Number(b.hargaJual || 0),
       }
     ]);
   };
@@ -200,11 +305,11 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
   };
 
   // Calculated Totals
-  const totalTindakan = selectedTindakanItems.reduce((acc, i) => acc + (i.tarif || 0), 0);
-  const totalResep = selectedResepItems.reduce((acc, i) => acc + (i.subtotal || 0), 0);
-  const totalRacikan = racikanList.reduce((acc, i) => acc + (i.totalHarga || 0), 0);
-  const totalAlkes = selectedAlkesItems.reduce((acc, i) => acc + (i.subtotal || ((i.hargaSatuan || 0) * (i.jumlah || 1))), 0);
-  const totalBarang = selectedBarangItems.reduce((acc, i) => acc + (i.subtotal || ((i.hargaSatuan || 0) * (i.jumlah || 1))), 0);
+  const totalTindakan = selectedTindakanItems.reduce((acc, i) => acc + (Number(i.tarif) || 0), 0);
+  const totalResep = selectedResepItems.reduce((acc, i) => acc + (Number(i.subtotal) || 0), 0);
+  const totalRacikan = racikanList.reduce((acc, i) => acc + (Number(i.totalHarga) || 0), 0);
+  const totalAlkes = selectedAlkesItems.reduce((acc, i) => acc + (Number(i.subtotal) || ((Number(i.hargaSatuan) || 0) * (Number(i.jumlah) || 1))), 0);
+  const totalBarang = selectedBarangItems.reduce((acc, i) => acc + (Number(i.subtotal) || ((Number(i.hargaSatuan) || 0) * (Number(i.jumlah) || 1))), 0);
   const calculatedGrandTotal = totalTindakan + totalResep + totalRacikan + totalAlkes + totalBarang;
 
   const handleSaveSOAP = async (e: React.FormEvent) => {
@@ -278,8 +383,8 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
         </div>
 
         <button
-          onClick={() => setShowFormModal(true)}
-          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-200 flex items-center space-x-2"
+          onClick={handleOpenNewSOAP}
+          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-200 flex items-center space-x-2 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Input Rekam Medis Baru</span>
@@ -411,28 +516,38 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
 
       {/* Modal Form SOAP Rekam Medis */}
       {showFormModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full p-6 animate-in fade-in duration-150 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div>
-                <h3 className="text-base font-bold text-slate-900">Formulir Rekam Medis Dokter (SOAP)</h3>
-                <p className="text-xs text-slate-500">Pemeriksaan fisik, diagnosa, tindakan, resep obat & obat racikan</p>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-4xl w-full max-h-[92vh] flex flex-col my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Fixed Modal Header */}
+            <div className="p-5 pb-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+              <div className="flex items-center space-x-3">
+                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl">
+                  <Stethoscope className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Formulir Rekam Medis Dokter (SOAP)</h3>
+                  <p className="text-xs text-slate-500">Pemeriksaan fisik, diagnosa, tindakan, resep obat & obat racikan</p>
+                </div>
               </div>
               <button
+                type="button"
                 onClick={() => {
                   setShowFormModal(false);
                   onClearActivePendaftaran();
                 }}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Tutup Form SOAP"
               >
-                <Trash2 className="w-5 h-5" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveSOAP} className="space-y-6 mt-4">
-              
-              {/* Header Info Dokter & Pasien */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+            <form onSubmit={handleSaveSOAP} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Scrollable Form Body */}
+              <div className="p-5 overflow-y-auto space-y-6 flex-1">
+                
+                {/* Header Info Dokter & Pasien */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Pasien Hewan</label>
                   <select
@@ -587,32 +702,143 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
                   Plan (Tindakan, Resep Obat, & Obat Racikan)
                 </h4>
 
-                {/* Pilih Tindakan */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-800">Tindakan Medis & Prosedur</span>
-                    <select
-                      onChange={(e) => {
-                        if (e.target.value) handleAddTindakan(e.target.value);
-                        e.target.value = '';
-                      }}
-                      className="text-xs p-1.5 rounded-lg border border-slate-300"
-                    >
-                      <option value="">+ Tambah Tindakan</option>
-                      {tindakanList.map((t) => (
-                        <option key={t.id} value={t.id}>{t.namaTindakan} (Rp {(t.tarif || 0).toLocaleString('id-ID')})</option>
-                      ))}
-                    </select>
+                {/* Jasa Pelayanan & Tindakan Medis */}
+                <div className="p-3.5 bg-indigo-50/70 border border-indigo-200/80 rounded-2xl space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <span className="text-xs font-bold text-indigo-950 flex items-center space-x-1.5">
+                        <Stethoscope className="w-4 h-4 text-indigo-600" />
+                        <span>Jasa Pelayanan & Tindakan Medis Dokter</span>
+                      </span>
+                      <p className="text-[11px] text-indigo-700">Biaya konsultasi, pemeriksaan klinis, atau prosedur medis dokter hewan.</p>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <select
+                        onChange={(e) => {
+                          if (e.target.value) handleAddTindakan(e.target.value);
+                          e.target.value = '';
+                        }}
+                        className="text-xs p-1.5 rounded-xl border border-indigo-300 bg-white font-medium text-slate-800 shadow-2xs"
+                      >
+                        <option value="">+ Pilih Dari Master Tarif</option>
+                        {tindakanList.map((t) => (
+                          <option key={t.id} value={t.id}>{t.namaTindakan} (Rp {(Number(t.tarif) || 0).toLocaleString('id-ID')})</option>
+                        ))}
+                      </select>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomTindakanInput(!showCustomTindakanInput)}
+                        className="px-2.5 py-1.5 bg-white border border-indigo-300 hover:bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                      >
+                        {showCustomTindakanInput ? 'Batal' : '+ Jasa Kustom'}
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {selectedTindakanItems.map((item) => (
-                      <span key={item.tindakanId} className="inline-flex items-center px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 text-xs font-bold border border-indigo-200">
-                        {item.namaTindakan} - Rp {(item.tarif || 0).toLocaleString('id-ID')}
-                        <button type="button" onClick={() => handleRemoveTindakan(item.tindakanId)} className="ml-2 text-rose-600 hover:text-rose-800">×</button>
-                      </span>
-                    ))}
+                  {/* Inline Custom Tindakan Creator */}
+                  {showCustomTindakanInput && (
+                    <div className="p-3 bg-white rounded-xl border border-indigo-200 shadow-xs space-y-2 animate-in fade-in">
+                      <p className="text-[11px] font-bold text-indigo-900">Tambah Jasa / Tindakan Medis Khusus:</p>
+                      <div className="flex flex-col sm:flex-row items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Nama Jasa / Tindakan (misal: Jahit Luka Kecil, Kateterisasi...)"
+                          value={customTindakanNama}
+                          onChange={(e) => setCustomTindakanNama(e.target.value)}
+                          className="w-full text-xs p-2 rounded-lg border border-slate-300 focus:outline-hidden focus:border-indigo-500"
+                        />
+                        <div className="flex items-center space-x-1 shrink-0 w-full sm:w-auto">
+                          <span className="text-xs text-slate-500 font-bold">Rp</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1000"
+                            placeholder="Biaya"
+                            value={customTindakanTarif}
+                            onChange={(e) => setCustomTindakanTarif(Number(e.target.value))}
+                            className="w-28 text-xs p-2 rounded-lg border border-slate-300 font-mono font-bold"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddCustomTindakan}
+                            className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold cursor-pointer"
+                          >
+                            Tambah
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tindakan Items List */}
+                  <div className="space-y-2 pt-1">
+                    {selectedTindakanItems.length === 0 ? (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center justify-between">
+                        <span>Belum ada jasa pelayanan dokter yang ditambahkan.</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const defaultT = tindakanList[0];
+                            if (defaultT) {
+                              handleAddTindakan(defaultT.id);
+                            } else {
+                              setSelectedTindakanItems([
+                                { tindakanId: 'tdk-pemeriksaan', namaTindakan: 'Pemeriksaan & Konsultasi Dokter', tarif: 50000 }
+                              ]);
+                            }
+                          }}
+                          className="font-bold underline text-amber-900 cursor-pointer"
+                        >
+                          + Tambah Jasa Konsultasi (Rp 50.000)
+                        </button>
+                      </div>
+                    ) : (
+                      selectedTindakanItems.map((item, idx) => (
+                        <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between bg-white p-2.5 rounded-xl border border-indigo-100 shadow-2xs gap-2 text-xs">
+                          <div className="flex items-center space-x-2">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0"></span>
+                            <span className="font-bold text-slate-800">{item.namaTindakan}</span>
+                            {item.keterangan && (
+                              <span className="text-[10px] text-slate-400">({item.keterangan})</span>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center space-x-2 self-end sm:self-auto">
+                            <span className="text-slate-500 text-[11px] font-semibold">Tarif Jasa: Rp</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1000"
+                              value={item.tarif}
+                              onChange={(e) => handleUpdateTarifTindakan(idx, Number(e.target.value))}
+                              className="w-28 p-1.5 rounded-lg border border-slate-300 font-mono font-bold text-right text-indigo-700 focus:outline-hidden focus:border-indigo-500"
+                              title="Edit tarif jasa ini jika ada penyesuaian"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveTindakan(idx)}
+                              className="p-1 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 cursor-pointer transition-colors"
+                              title="Hapus tindakan ini"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
+
+                  {/* Subtotal Jasa Banner */}
+                  {selectedTindakanItems.length > 0 && (
+                    <div className="flex justify-between items-center pt-1 text-xs border-t border-indigo-200/60 font-semibold text-indigo-900">
+                      <span>Subtotal Jasa Pelayanan & Tindakan:</span>
+                      <span className="font-mono font-extrabold text-indigo-700 text-sm">
+                        Rp {totalTindakan.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Pilih Resep Obat */}
@@ -860,21 +1086,35 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
 
               </div>
 
-              {/* Submit Buttons */}
-              <div className="pt-4 border-t border-slate-100 flex items-center justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setShowFormModal(false)}
-                  className="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-200"
-                >
-                  Simpan Rekam Medis (SOAP)
-                </button>
+              </div>
+
+              {/* Fixed Bottom Footer */}
+              <div className="p-4 border-t border-slate-100 bg-slate-50/95 flex items-center justify-between shrink-0">
+                <div className="text-xs text-slate-600 hidden sm:flex items-center space-x-2">
+                  <span>Total Estimasi Biaya:</span>
+                  <span className="font-extrabold text-indigo-700 font-mono text-sm">
+                    Rp {calculatedGrandTotal.toLocaleString('id-ID')}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowFormModal(false);
+                      onClearActivePendaftaran();
+                    }}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-200 transition-all cursor-pointer flex items-center space-x-1.5"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Simpan Rekam Medis (SOAP)</span>
+                  </button>
+                </div>
               </div>
 
             </form>
@@ -889,6 +1129,13 @@ export const RekamMedisView: React.FC<RekamMedisViewProps> = ({
           pasien={pasienList.find((p) => p.id === printingA4RM.pasienId)}
           dokter={dokterList.find((d) => d.id === printingA4RM.dokterId)}
           klinik={klinik}
+          transaksi={transaksiList.find((t) => t.rekamMedisId === printingA4RM.id)}
+          barangList={barangList}
+          tindakanList={tindakanList}
+          onSaveRekamMedis={onSaveRekamMedis}
+          onSaveTransaksi={onSaveTransaksi}
+          onUseInventory={onUseInventory}
+          onRevertInventory={onRevertInventory}
           onClose={() => setPrintingA4RM(null)}
         />
       )}

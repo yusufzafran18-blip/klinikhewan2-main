@@ -300,6 +300,7 @@ export interface RawatInap {
   totalBiaya?: number; // total akumulasi biaya rawat inap
   statusPembayaran?: 'Belum Lunas' | 'Lunas' | 'Dibatalkan';
   catatanKhusus?: string;
+  catatan?: string;
 }
 
 export interface JanjiTemu {
@@ -327,7 +328,8 @@ export interface RiwayatVaksinasi {
 
 export interface DetailTransaksiItem {
   id: string;
-  jenis: 'Tindakan' | 'Obat' | 'Obat Racikan' | 'Barang/Pakan' | 'Rawat Inap';
+  barangId?: string;
+  jenis: 'Tindakan' | 'Obat' | 'Obat Racikan' | 'Barang/Pakan' | 'Rawat Inap' | 'Produk Retail';
   namaItem: string;
   jumlah: number;
   hargaSatuan: number;
@@ -386,6 +388,7 @@ export interface PembelianBarang {
   }[];
   grandTotal: number;
   status: 'Selesai' | 'Draft' | 'Dibatalkan';
+  catatan?: string;
   alasanPembatalan?: string;
   dibatalkanOleh?: string;
 }

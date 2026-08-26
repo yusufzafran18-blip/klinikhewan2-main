@@ -322,151 +322,164 @@ export const PasienView: React.FC<PasienViewProps> = ({
 
       {/* Modal Add/Edit Pasien */}
       {showFormModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-xl w-full p-6 animate-in fade-in duration-150 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">
-                {editingPasien ? 'Edit Data Pasien' : 'Registrasi Pasien Hewan Baru'}
-              </h3>
-              <button onClick={() => setShowFormModal(false)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-xl w-full max-h-[92vh] flex flex-col my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Fixed Header */}
+            <div className="p-5 pb-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  {editingPasien ? 'Edit Data Pasien' : 'Registrasi Pasien Hewan Baru'}
+                </h3>
+                <p className="text-xs text-slate-500">Lengkapi data identitas anabul dan kontak pemilik</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFormModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition-colors"
+                title="Tutup Form"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4 mt-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Nama Hewan</label>
-                  <input
-                    type="text"
-                    required
-                    value={namaHewan}
-                    onChange={(e) => setNamaHewan(e.target.value)}
-                    placeholder="Contoh: Mochi"
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Jenis / Spesies *</label>
-                  <select
-                    value={jenisHewan}
-                    onChange={(e) => setJenisHewan(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 font-bold"
-                  >
-                    {speciesOptions.map((sp) => (
-                      <option key={sp} value={sp}>{sp}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Ras / Breed</label>
-                  <input
-                    type="text"
-                    value={ras}
-                    onChange={(e) => setRas(e.target.value)}
-                    placeholder="Contoh: Persia / Golden Retriever"
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Jenis Kelamin</label>
-                  <select
-                    value={jenisKelamin}
-                    onChange={(e) => setJenisKelamin(e.target.value as JenisKelaminHewan)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="Jantan">Jantan</option>
-                    <option value="Jantan Kastrasi">Jantan Kastrasi (Steril)</option>
-                    <option value="Betina">Betina</option>
-                    <option value="Betina Steril">Betina Steril (Spayed)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Tanggal Lahir / Perkiraan</label>
-                  <input
-                    type="date"
-                    value={tanggalLahir}
-                    onChange={(e) => setTanggalLahir(e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Warna / Corak</label>
-                  <input
-                    type="text"
-                    value={warna}
-                    onChange={(e) => setWarna(e.target.value)}
-                    placeholder="Contoh: Putih Oranye"
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-
-              <div className="border-t border-slate-100 pt-3">
-                <p className="text-xs font-bold text-slate-800 mb-2">Data Pemilik (Owner)</p>
+            <form onSubmit={handleSave} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              {/* Scrollable Body */}
+              <div className="p-5 overflow-y-auto space-y-4 flex-1">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Nama Pemilik</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Nama Hewan *</label>
                     <input
                       type="text"
                       required
-                      value={namaOwner}
-                      onChange={(e) => setNamaOwner(e.target.value)}
-                      placeholder="Contoh: Budi Santoso"
-                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                      value={namaHewan}
+                      onChange={(e) => setNamaHewan(e.target.value)}
+                      placeholder="Contoh: Mochi"
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">No. WhatsApp / HP</label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Jenis / Spesies *</label>
+                    <select
+                      value={jenisHewan}
+                      onChange={(e) => setJenisHewan(e.target.value)}
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 font-bold outline-none"
+                    >
+                      {speciesOptions.map((sp) => (
+                        <option key={sp} value={sp}>{sp}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Ras / Breed</label>
                     <input
                       type="text"
-                      required
-                      value={noHpOwner}
-                      onChange={(e) => setNoHpOwner(e.target.value)}
-                      placeholder="Contoh: 081234567890"
-                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500"
+                      value={ras}
+                      onChange={(e) => setRas(e.target.value)}
+                      placeholder="Contoh: Persia / Golden Retriever"
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Jenis Kelamin</label>
+                    <select
+                      value={jenisKelamin}
+                      onChange={(e) => setJenisKelamin(e.target.value as JenisKelaminHewan)}
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    >
+                      <option value="Jantan">Jantan</option>
+                      <option value="Jantan Kastrasi">Jantan Kastrasi (Steril)</option>
+                      <option value="Betina">Betina</option>
+                      <option value="Betina Steril">Betina Steril (Spayed)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Tanggal Lahir / Perkiraan</label>
+                    <input
+                      type="date"
+                      value={tanggalLahir}
+                      onChange={(e) => setTanggalLahir(e.target.value)}
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Warna / Corak</label>
+                    <input
+                      type="text"
+                      value={warna}
+                      onChange={(e) => setWarna(e.target.value)}
+                      placeholder="Contoh: Putih Oranye"
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
                     />
                   </div>
                 </div>
-                <div className="mt-3">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Alamat Lengkap</label>
-                  <input
-                    type="text"
-                    value={alamatOwner}
-                    onChange={(e) => setAlamatOwner(e.target.value)}
-                    placeholder="Jl. Pemuda No. 45 Jember"
-                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500"
-                  />
+
+                <div className="border-t border-slate-100 pt-3">
+                  <p className="text-xs font-bold text-slate-800 mb-2">Data Pemilik (Owner)</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">Nama Pemilik *</label>
+                      <input
+                        type="text"
+                        required
+                        value={namaOwner}
+                        onChange={(e) => setNamaOwner(e.target.value)}
+                        placeholder="Contoh: Budi Santoso"
+                        className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">No. WhatsApp / HP *</label>
+                      <input
+                        type="text"
+                        required
+                        value={noHpOwner}
+                        onChange={(e) => setNoHpOwner(e.target.value)}
+                        placeholder="Contoh: 081234567890"
+                        className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">Alamat Lengkap</label>
+                    <input
+                      type="text"
+                      value={alamatOwner}
+                      onChange={(e) => setAlamatOwner(e.target.value)}
+                      placeholder="Jl. Pemuda No. 45 Jember"
+                      className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Alergi Obat / Catatan Khusus</label>
+                  <textarea
+                    rows={2}
+                    value={catatanKhusus}
+                    onChange={(e) => setCatatanKhusus(e.target.value)}
+                    placeholder="Alergi penicillin, rewel saat disuntik..."
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none"
+                  ></textarea>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Alergi Obat / Catatan Khusus</label>
-                <textarea
-                  rows={2}
-                  value={catatanKhusus}
-                  onChange={(e) => setCatatanKhusus(e.target.value)}
-                  placeholder="Alergi penicillin, rewel saat disuntik..."
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500"
-                ></textarea>
-              </div>
-
-              <div className="pt-2 flex justify-end space-x-2">
+              {/* Fixed Footer */}
+              <div className="p-4 border-t border-slate-100 bg-slate-50/90 flex justify-end space-x-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowFormModal(false)}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-200"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-200 transition-all cursor-pointer"
                 >
                   Simpan Pasien
                 </button>
@@ -478,9 +491,9 @@ export const PasienView: React.FC<PasienViewProps> = ({
 
       {/* Modal Detail Pasien & Riwayat Medis */}
       {selectedPasienForDetail && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full p-6 animate-in fade-in duration-150 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-2xl w-full max-h-[90vh] flex flex-col my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-5 pb-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center space-x-3">
                 <img src={selectedPasienForDetail.fotoUrl} className="w-10 h-10 rounded-xl object-cover" />
                 <div>
@@ -488,12 +501,12 @@ export const PasienView: React.FC<PasienViewProps> = ({
                   <p className="text-xs text-slate-500">Owner: {selectedPasienForDetail.namaOwner} • {selectedPasienForDetail.noHpOwner}</p>
                 </div>
               </div>
-              <button onClick={() => setSelectedPasienForDetail(null)} className="p-1 rounded-lg text-slate-400 hover:text-slate-600">
+              <button onClick={() => setSelectedPasienForDetail(null)} className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="mt-4 space-y-4">
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
               <div className="bg-slate-50 p-3 rounded-xl grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                 <div><span className="text-slate-400 block">Spesies/Ras:</span><span className="font-bold">{selectedPasienForDetail.jenisHewan} / {selectedPasienForDetail.ras}</span></div>
                 <div><span className="text-slate-400 block">Kelamin:</span><span className="font-bold">{selectedPasienForDetail.jenisKelamin}</span></div>

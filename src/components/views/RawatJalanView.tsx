@@ -27,6 +27,9 @@ interface RawatJalanViewProps {
   onSaveRekamMedis?: (rm: RekamMedis) => void | Promise<void>;
   onCancelRekamMedis?: (rmId: string, alasan: string, user: string) => void | Promise<void>;
   onDeleteRekamMedis?: (rmId: string) => void | Promise<void>;
+  onUseInventory?: (items: { barangId?: string; nama?: string; jumlah: number }[], options?: any) => Promise<boolean | void> | boolean | void;
+  onRevertInventory?: (items: { barangId?: string; nama?: string; jumlah: number }[], options?: any) => Promise<boolean | void> | boolean | void;
+  onSaveTransaksi?: (trx: Transaksi) => void | Promise<void>;
   activeUserName?: string;
 }
 
@@ -44,6 +47,9 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
   onSaveRekamMedis,
   onCancelRekamMedis,
   onDeleteRekamMedis,
+  onUseInventory,
+  onRevertInventory,
+  onSaveTransaksi,
   activeUserName,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -661,15 +667,15 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
 
       {/* MODAL 1: DETAIL SOAP MODAL */}
       {selectedRmForDetail && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 p-6 space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[92vh] flex flex-col my-auto overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-5 pb-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center space-x-3">
                 <div className="p-2.5 bg-emerald-100 text-emerald-700 rounded-2xl">
                   <Stethoscope className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">
+                  <h3 className="text-base font-bold text-slate-900">
                     Detail Rekam Medis Rawat Jalan ({selectedRmForDetail.noRM})
                   </h3>
                   <p className="text-xs text-slate-500">Tanggal Periksa: {selectedRmForDetail.tanggal}</p>
@@ -677,14 +683,14 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
               </div>
               <button
                 onClick={() => setSelectedRmForDetail(null)}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 cursor-pointer"
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* SOAP Sections */}
-            <div className="space-y-4 text-xs">
+            <div className="p-5 overflow-y-auto space-y-4 text-xs flex-1">
               {/* Subjective */}
               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
                 <h4 className="font-extrabold text-slate-800 text-sm text-emerald-700">Subjective (S)</h4>
@@ -762,7 +768,7 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
             </div>
 
             {/* Modal Actions */}
-            <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
+            <div className="flex items-center justify-end space-x-3 p-4 border-t border-slate-100 bg-slate-50/95 shrink-0">
               {typeof onCancelRekamMedis === 'function' && (
                 <button
                   onClick={() => {
@@ -961,9 +967,9 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
 
       {/* MODAL 3: TAMBAH RAWAT JALAN RINGKAS */}
       {showAddOutpatientModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 p-6 space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col my-auto overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-5 pb-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
               <div className="flex items-center space-x-2">
                 <Plus className="w-5 h-5 text-emerald-600" />
                 <h3 className="font-extrabold text-slate-900 text-base">
@@ -972,164 +978,166 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
               </div>
               <button
                 onClick={() => setShowAddOutpatientModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 cursor-pointer"
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmitNewOutpatient} className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Pilih Pasien / Hewan *</label>
-                  <select
-                    value={formPasienId}
-                    onChange={(e) => setFormPasienId(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
-                  >
-                    {pasienList.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.namaHewan} ({p.jenisHewan}) - Owner: {p.namaOwner}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Dokter Pemeriksa *</label>
-                  <select
-                    value={formDokterId}
-                    onChange={(e) => setFormDokterId(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
-                  >
-                    {dokterList.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.nama}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Keluhan Utama *</label>
-                <input
-                  type="text"
-                  value={formKeluhan}
-                  onChange={(e) => setFormKeluhan(e.target.value)}
-                  placeholder="Contoh: Bersin-bersin, gatal telinga, flu ringan"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Diagnosa Utama Rawat Jalan *</label>
-                <input
-                  type="text"
-                  value={formDiagnosa}
-                  onChange={(e) => setFormDiagnosa(e.target.value)}
-                  placeholder="Contoh: Otitis Externa, Scabies, Flu Kucing"
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
-                  required
-                />
-              </div>
-
-              {/* Add Resep Items Builder */}
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-3">
-                <h4 className="font-bold text-slate-800 text-xs flex items-center space-x-1.5">
-                  <Pill className="w-4 h-4 text-indigo-600" />
-                  <span>Tambah Resep Obat Jalan:</span>
-                </h4>
-
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-                  <div className="md:col-span-2">
+            <form onSubmit={handleSubmitNewOutpatient} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+              <div className="p-5 overflow-y-auto space-y-4 text-xs flex-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Pilih Pasien / Hewan *</label>
                     <select
-                      value={selectedBarangId}
-                      onChange={(e) => setSelectedBarangId(e.target.value)}
-                      className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none"
+                      value={formPasienId}
+                      onChange={(e) => setFormPasienId(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
                     >
-                      {barangList.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.namaBarang} (Stok: {b.stokCurrent}) - Rp {b.hargaJual.toLocaleString('id-ID')}
+                      {pasienList.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.namaHewan} ({p.jenisHewan}) - Owner: {p.namaOwner}
                         </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
+                    <label className="block font-bold text-slate-700 mb-1">Dokter Pemeriksa *</label>
+                    <select
+                      value={formDokterId}
+                      onChange={(e) => setFormDokterId(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    >
+                      {dokterList.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.nama}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Keluhan Utama *</label>
+                  <input
+                    type="text"
+                    value={formKeluhan}
+                    onChange={(e) => setFormKeluhan(e.target.value)}
+                    placeholder="Contoh: Bersin-bersin, gatal telinga, flu ringan"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Diagnosa Utama Rawat Jalan *</label>
+                  <input
+                    type="text"
+                    value={formDiagnosa}
+                    onChange={(e) => setFormDiagnosa(e.target.value)}
+                    placeholder="Contoh: Otitis Externa, Scabies, Flu Kucing"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    required
+                  />
+                </div>
+
+                {/* Add Resep Items Builder */}
+                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-3">
+                  <h4 className="font-bold text-slate-800 text-xs flex items-center space-x-1.5">
+                    <Pill className="w-4 h-4 text-indigo-600" />
+                    <span>Tambah Resep Obat Jalan:</span>
+                  </h4>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                    <div className="md:col-span-2">
+                      <select
+                        value={selectedBarangId}
+                        onChange={(e) => setSelectedBarangId(e.target.value)}
+                        className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none"
+                      >
+                        {barangList.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.namaBarang} (Stok: {b.stokCurrent}) - Rp {b.hargaJual.toLocaleString('id-ID')}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <input
+                        type="text"
+                        value={resepDosis}
+                        onChange={(e) => setResepDosis(e.target.value)}
+                        placeholder="Dosis (mis: 2x 1.5ml)"
+                        className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <button
+                        type="button"
+                        onClick={handleAddResepItem}
+                        className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-xs cursor-pointer transition-colors"
+                      >
+                        + Tambah Obat
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Resep Items Table */}
+                  {formResepList.length > 0 && (
+                    <div className="space-y-1.5 pt-2">
+                      {formResepList.map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200 text-xs"
+                        >
+                          <div>
+                            <span className="font-bold text-slate-800">{item.namaBarang}</span>
+                            <span className="ml-2 text-indigo-600 font-semibold">({item.dosis})</span>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <span className="font-bold text-slate-700">Rp {item.subtotal.toLocaleString('id-ID')}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveResepItem(idx)}
+                              className="text-rose-500 hover:text-rose-700 font-bold text-xs cursor-pointer"
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Catatan & Anjuran Dokter</label>
                     <input
                       type="text"
-                      value={resepDosis}
-                      onChange={(e) => setResepDosis(e.target.value)}
-                      placeholder="Dosis (mis: 2x 1.5ml)"
-                      className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-medium outline-none"
+                      value={formCatatan}
+                      onChange={(e) => setFormCatatan(e.target.value)}
+                      placeholder="Instruksi perawatan di rumah"
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs outline-none"
                     />
                   </div>
 
                   <div>
-                    <button
-                      type="button"
-                      onClick={handleAddResepItem}
-                      className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-xs cursor-pointer transition-colors"
-                    >
-                      + Tambah Obat
-                    </button>
+                    <label className="block font-bold text-slate-700 mb-1">Jadwal Kontrol Ulang (Opsional)</label>
+                    <input
+                      type="date"
+                      value={formKontrolDate}
+                      onChange={(e) => setFormKontrolDate(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs outline-none"
+                    />
                   </div>
-                </div>
-
-                {/* Resep Items Table */}
-                {formResepList.length > 0 && (
-                  <div className="space-y-1.5 pt-2">
-                    {formResepList.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-2 bg-white rounded-xl border border-slate-200 text-xs"
-                      >
-                        <div>
-                          <span className="font-bold text-slate-800">{item.namaBarang}</span>
-                          <span className="ml-2 text-indigo-600 font-semibold">({item.dosis})</span>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <span className="font-bold text-slate-700">Rp {item.subtotal.toLocaleString('id-ID')}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveResepItem(idx)}
-                            className="text-rose-500 hover:text-rose-700 font-bold text-xs cursor-pointer"
-                          >
-                            Hapus
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Catatan & Anjuran Dokter</label>
-                  <input
-                    type="text"
-                    value={formCatatan}
-                    onChange={(e) => setFormCatatan(e.target.value)}
-                    placeholder="Instruksi perawatan di rumah"
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Jadwal Kontrol Ulang (Opsional)</label>
-                  <input
-                    type="date"
-                    value={formKontrolDate}
-                    onChange={(e) => setFormKontrolDate(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-xs outline-none"
-                  />
                 </div>
               </div>
 
-              <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-end space-x-3 p-4 border-t border-slate-100 bg-slate-50/95 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowAddOutpatientModal(false)}
@@ -1156,6 +1164,13 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
           pasien={pasienList.find((p) => p.id === printingA4RM.pasienId)}
           dokter={dokterList.find((d) => d.id === printingA4RM.dokterId)}
           klinik={klinik}
+          transaksi={transaksiList.find((t) => t.rekamMedisId === printingA4RM.id)}
+          barangList={barangList}
+          tindakanList={tindakanList}
+          onSaveRekamMedis={onSaveRekamMedis}
+          onSaveTransaksi={onSaveTransaksi}
+          onUseInventory={onUseInventory}
+          onRevertInventory={onRevertInventory}
           onClose={() => setPrintingA4RM(null)}
         />
       )}

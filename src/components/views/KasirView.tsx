@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Transaksi, RekamMedis, RawatInap, Pasien, DataKlinik, AppSettings, User, ResepItem, AlkesUsageItem, TindakanMedisItem } from '../../types';
+import { Transaksi, RekamMedis, RawatInap, Pasien, DataKlinik, AppSettings, User, ResepItem, AlkesUsageItem, TindakanMedisItem, Barang, Tindakan } from '../../types';
 import {
   CreditCard, Search, Printer, AlertTriangle, CheckCircle,
   XCircle, FileSpreadsheet, RotateCcw, ShieldAlert, DollarSign, FileText,
@@ -18,6 +18,12 @@ interface KasirViewProps {
   klinik: DataKlinik;
   settings: AppSettings;
   activeUser: User;
+  barangList?: Barang[];
+  tindakanList?: Tindakan[];
+  onSaveRawatInap?: (inap: RawatInap) => void | Promise<void>;
+  onSaveRekamMedis?: (rm: RekamMedis) => void | Promise<void>;
+  onUseInventory?: (items: { barangId?: string; nama?: string; jumlah: number }[], options?: any) => Promise<boolean | void> | boolean | void;
+  onRevertInventory?: (items: { barangId?: string; nama?: string; jumlah: number }[], options?: any) => Promise<boolean | void> | boolean | void;
   onSaveTransaksi: (trx: Transaksi) => void | Promise<void>;
   onVoidTransaksi: (id: string, alasan: string, user: string) => void;
 }
@@ -30,6 +36,12 @@ export const KasirView: React.FC<KasirViewProps> = ({
   klinik,
   settings,
   activeUser,
+  barangList = [],
+  tindakanList = [],
+  onSaveRawatInap,
+  onSaveRekamMedis,
+  onUseInventory,
+  onRevertInventory,
   onSaveTransaksi,
   onVoidTransaksi,
 }) => {
@@ -78,19 +90,40 @@ export const KasirView: React.FC<KasirViewProps> = ({
 
   // Helper compute Outpatient / Rekam Medis total
   const computeRMTotal = (rm: RekamMedis) => {
-    const tindakanTotal = (rm.plan?.tindakanList || []).reduce((s, it) => s + (it.tarif || 0), 0);
-    const obatTotal = (rm.plan?.resepList || []).reduce((s, it) => s + (it.subtotal ?? ((it.hargaSatuan || 0) * (it.jumlah || 0))), 0);
-    const racikanTotal = (rm.plan?.racikanList || []).reduce((s, it) => s + (it.totalHarga || 0), 0);
-    const alkesTotal = (rm.plan?.penggunaanAlkesList || []).reduce((s, it) => s + (it.subtotal ?? ((it.hargaSatuan || 0) * (it.jumlah || 0))), 0);
-    const barangTotal = (rm.plan?.pemakaianBarangList || []).reduce((s, it) => s + (it.subtotal ?? ((it.hargaSatuan || 0) * (it.jumlah || 0))), 0);
-    const total = tindakanTotal + obatTotal + racikanTotal + alkesTotal + barangTotal;
+    const tindakanTotal = (rm.plan?.tindakanList || []).reduce(
+      (s, it) => s + Number(it.tarif || (it as any).hargaSatuan || (it as any).biaya || (it as any).subtotal || 0),
+      0
+    );
+    const obatTotal = (rm.plan?.resepList || []).reduce(
+      (s, it) => s + Number(it.subtotal ?? ((it.hargaSatuan || 0) * (it.jumlah || 0))),
+      0
+    );
+    const racikanTotal = (rm.plan?.racikanList || []).reduce(
+      (s, it) => s + Number(it.totalHarga || 0),
+      0
+    );
+    const alkesTotal = (rm.plan?.penggunaanAlkesList || []).reduce(
+      (s, it) => s + Number(it.subtotal ?? ((it.hargaSatuan || 0) * (it.jumlah || 0))),
+      0
+    );
+    const barangTotal = (rm.plan?.pemakaianBarangList || []).reduce(
+      (s, it) => s + Number(it.subtotal ?? ((it.hargaSatuan || 0) * (it.jumlah || 0))),
+      0
+    );
+
+    const nonTindakanTotal = obatTotal + racikanTotal + alkesTotal + barangTotal;
+    const effectiveTindakanTotal = (tindakanTotal === 0 && (!rm.plan?.tindakanList || rm.plan.tindakanList.length === 0) && Number(rm.totalBiaya || 0) > nonTindakanTotal)
+      ? Number(rm.totalBiaya) - nonTindakanTotal
+      : tindakanTotal;
+
+    const total = effectiveTindakanTotal + nonTindakanTotal;
     return {
-      tindakanTotal,
+      tindakanTotal: effectiveTindakanTotal,
       obatTotal,
       racikanTotal,
       alkesTotal,
       barangTotal,
-      total: total > 0 ? total : (rm.totalBiaya || 0),
+      total: total > 0 ? total : Number(rm.totalBiaya || 0),
     };
   };
 
@@ -134,46 +167,57 @@ export const KasirView: React.FC<KasirViewProps> = ({
       const kembalian = Math.max(0, jumlahBayar - grandTotal);
 
       // Build comprehensive line items for RM
+      const effectiveTindakanItems = (selectedRMForPay.plan?.tindakanList && selectedRMForPay.plan.tindakanList.length > 0)
+        ? selectedRMForPay.plan.tindakanList.map((t, idx) => ({
+            id: 'ti-' + (t.tindakanId || idx),
+            jenis: 'Tindakan' as const,
+            namaItem: `[Jasa Pelayanan] ${t.namaTindakan}`,
+            jumlah: 1,
+            hargaSatuan: Number(t.tarif || 0),
+            subtotal: Number(t.tarif || 0),
+          }))
+        : (rmBill.tindakanTotal > 0 ? [{
+            id: 'ti-default',
+            jenis: 'Tindakan' as const,
+            namaItem: '[Jasa Pelayanan] Pemeriksaan & Konsultasi Dokter',
+            jumlah: 1,
+            hargaSatuan: rmBill.tindakanTotal,
+            subtotal: rmBill.tindakanTotal,
+          }] : []);
+
       const items = [
-        ...selectedRMForPay.plan.tindakanList.map((t, idx) => ({
-          id: 'ti-' + idx,
-          jenis: 'Tindakan' as const,
-          namaItem: t.namaTindakan,
-          jumlah: 1,
-          hargaSatuan: t.tarif,
-          subtotal: t.tarif,
-        })),
-        ...selectedRMForPay.plan.resepList.map((r, idx) => ({
+        ...effectiveTindakanItems,
+        ...(selectedRMForPay.plan?.resepList || []).map((r, idx) => ({
           id: 'ri-' + idx,
           jenis: 'Obat' as const,
           namaItem: `${r.namaBarang} (${r.dosis})`,
-          jumlah: r.jumlah,
-          hargaSatuan: r.hargaSatuan,
-          subtotal: r.subtotal,
+          jumlah: Number(r.jumlah || 1),
+          hargaSatuan: Number(r.hargaSatuan || 0),
+          subtotal: Number(r.subtotal ?? ((r.hargaSatuan || 0) * (r.jumlah || 1))),
         })),
-        ...selectedRMForPay.plan.racikanList.map((rac, idx) => ({
+        ...(selectedRMForPay.plan?.racikanList || []).map((rac, idx) => ({
           id: 'rac-' + idx,
           jenis: 'Obat Racikan' as const,
           namaItem: rac.namaRacikan,
           jumlah: 1,
-          hargaSatuan: rac.totalHarga,
-          subtotal: rac.totalHarga,
+          hargaSatuan: Number(rac.totalHarga || 0),
+          subtotal: Number(rac.totalHarga || 0),
         })),
-        ...(selectedRMForPay.plan.penggunaanAlkesList || []).map((a, idx) => ({
+        ...(selectedRMForPay.plan?.penggunaanAlkesList || []).map((a, idx) => ({
           id: 'alkes-' + idx,
           jenis: 'Alkes' as const,
           namaItem: `${a.namaAlkes} (${a.satuan || 'Pcs'})`,
-          jumlah: a.jumlah,
-          hargaSatuan: a.hargaSatuan,
-          subtotal: a.subtotal,
+          jumlah: Number(a.jumlah || 1),
+          hargaSatuan: Number(a.hargaSatuan || 0),
+          subtotal: Number(a.subtotal ?? ((a.hargaSatuan || 0) * (a.jumlah || 1))),
         })),
-        ...(selectedRMForPay.plan.pemakaianBarangList || []).map((b, idx) => ({
+        ...(selectedRMForPay.plan?.pemakaianBarangList || []).map((b, idx) => ({
           id: 'brg-' + idx,
           jenis: 'Barang' as const,
           namaItem: b.namaBarang,
-          jumlah: b.jumlah,
-          hargaSatuan: b.hargaSatuan,
-          subtotal: b.subtotal,
+          jumlah: Number(b.jumlah || 1),
+          hargaSatuan: Number(b.hargaSatuan || 0),
+          subtotal: Number(b.subtotal ?? ((b.hargaSatuan || 0) * (b.jumlah || 1))),
         })),
       ];
 
@@ -491,16 +535,28 @@ export const KasirView: React.FC<KasirViewProps> = ({
                       <span className="font-extrabold text-indigo-700">Total: Rp {rmBill.total.toLocaleString('id-ID')}</span>
                     </div>
 
-                    {/* Tindakan */}
-                    {(selectedRMForPay.plan?.tindakanList || []).map((t, i) => (
-                      <div key={'t-' + i} className="flex justify-between text-slate-700">
-                        <span className="flex items-center space-x-1.5">
-                          <Stethoscope className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                          <span>[Tindakan] {t.namaTindakan}</span>
-                        </span>
-                        <span className="font-semibold">Rp {(t.tarif || 0).toLocaleString('id-ID')}</span>
-                      </div>
-                    ))}
+                    {/* Jasa Pelayanan & Tindakan Medis */}
+                    {(selectedRMForPay.plan?.tindakanList && selectedRMForPay.plan.tindakanList.length > 0) ? (
+                      selectedRMForPay.plan.tindakanList.map((t, i) => (
+                        <div key={'t-' + i} className="flex justify-between text-indigo-900 font-medium">
+                          <span className="flex items-center space-x-1.5">
+                            <Stethoscope className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                            <span>[Jasa Pelayanan] {t.namaTindakan}</span>
+                          </span>
+                          <span className="font-semibold font-mono">Rp {(Number(t.tarif) || 0).toLocaleString('id-ID')}</span>
+                        </div>
+                      ))
+                    ) : (
+                      rmBill.tindakanTotal > 0 && (
+                        <div className="flex justify-between text-indigo-900 font-medium">
+                          <span className="flex items-center space-x-1.5">
+                            <Stethoscope className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                            <span>[Jasa Pelayanan] Pemeriksaan & Konsultasi Dokter</span>
+                          </span>
+                          <span className="font-semibold font-mono">Rp {rmBill.tindakanTotal.toLocaleString('id-ID')}</span>
+                        </div>
+                      )
+                    )}
 
                     {/* Resep Obat */}
                     {(selectedRMForPay.plan?.resepList || []).map((r, i) => (
@@ -809,6 +865,11 @@ export const KasirView: React.FC<KasirViewProps> = ({
               klinik={klinik}
               rekamMedisList={rekamMedisList}
               transaksi={trx}
+              barangList={barangList}
+              tindakanList={tindakanList}
+              onSaveRawatInap={onSaveRawatInap}
+              onUseInventory={onUseInventory}
+              onRevertInventory={onRevertInventory}
               onClose={() => setPrintingInapA4Trx(null)}
             />
           );
@@ -848,6 +909,12 @@ export const KasirView: React.FC<KasirViewProps> = ({
               dokter={undefined}
               klinik={klinik}
               transaksi={trx}
+              barangList={barangList}
+              tindakanList={tindakanList}
+              onSaveRekamMedis={onSaveRekamMedis}
+              onSaveTransaksi={onSaveTransaksi}
+              onUseInventory={onUseInventory}
+              onRevertInventory={onRevertInventory}
               onClose={() => setPrintingOutpatientA4Trx(null)}
             />
           );

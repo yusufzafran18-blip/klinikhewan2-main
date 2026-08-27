@@ -155,21 +155,39 @@ export const PendaftaranView: React.FC<PendaftaranViewProps> = ({
     if (!selectedDokterId) return alert('Silakan pilih dokter pemeriksa/penanggung jawab!');
 
     const todayDate = new Date().toISOString().split('T')[0];
-    const todayPendaftarans = pendaftaranList.filter((p) => p.tanggal === todayDate);
     const prefix = selectedJenisLayanan === 'Rawat Inap' ? 'RI' : 'RJ';
-    const noAntrian = `${prefix}-${String(todayPendaftarans.length + 1).padStart(3, '0')}`;
+    
+    // Find highest sequence number already recorded for this prefix
+    let maxSeq = 0;
+    pendaftaranList.forEach((p) => {
+      if (p.noAntrian && typeof p.noAntrian === 'string') {
+        const clean = p.noAntrian.trim();
+        if (clean.startsWith(`${prefix}-`)) {
+          const numStr = clean.replace(`${prefix}-`, '');
+          const num = parseInt(numStr, 10);
+          if (!isNaN(num) && num > maxSeq) {
+            maxSeq = num;
+          }
+        }
+      }
+    });
+    const noAntrian = `${prefix}-${String(maxSeq + 1).padStart(3, '0')}`;
+
+    const isRawatInap = selectedJenisLayanan === 'Rawat Inap';
+    const rawatInapId = isRawatInap ? 'inap-' + Date.now() : undefined;
 
     const newPendaftaran: Pendaftaran = {
       id: 'pdf-' + Date.now(),
+      rawatInapId,
       noAntrian,
       pasienId: targetPasienId,
       dokterId: selectedDokterId,
       tanggal: todayDate,
       waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      keluhanUtama: keluhan.trim() || (selectedJenisLayanan === 'Rawat Inap' ? 'Observasi Rawat Inap' : 'Pemeriksaan Rutin'),
-      layananDipilih: selectedJenisLayanan === 'Rawat Inap' ? `Rawat Inap - ${noKandang}` : layananSpesifik,
+      keluhanUtama: keluhan.trim() || (isRawatInap ? 'Observasi Rawat Inap' : 'Pemeriksaan Rutin'),
+      layananDipilih: isRawatInap ? `Rawat Inap - ${noKandang}` : layananSpesifik,
       jenisLayanan: selectedJenisLayanan,
-      rawatInapDetail: selectedJenisLayanan === 'Rawat Inap' ? {
+      rawatInapDetail: isRawatInap ? {
         noKandang,
         tarifPerHari,
         diagnosaAwal: keluhan.trim() || 'Observasi Rawat Inap',
@@ -451,13 +469,13 @@ export const PendaftaranView: React.FC<PendaftaranViewProps> = ({
 
                   return (
                     <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-4">
-                        <span className={`px-3 py-1.5 font-black rounded-xl text-xs border ${
+                      <td className="p-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center justify-center px-3 py-1.5 font-mono font-black rounded-xl text-xs border tracking-wider shadow-xs ${
                           isRawatInap
-                            ? 'bg-purple-100 text-purple-800 border-purple-200'
-                            : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                            ? 'bg-purple-100 text-purple-900 border-purple-300 ring-1 ring-purple-500/20'
+                            : 'bg-emerald-100 text-emerald-900 border-emerald-300 ring-1 ring-emerald-500/20'
                         }`}>
-                          {p.noAntrian}
+                          {p.noAntrian || (isRawatInap ? `RI-${String(p.id).slice(-3)}` : `RJ-${String(p.id).slice(-3)}`)}
                         </span>
                       </td>
 

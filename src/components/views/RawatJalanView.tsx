@@ -261,14 +261,6 @@ export const RawatJalanView: React.FC<RawatJalanViewProps> = ({
               <span>Input SOAP Rawat Jalan</span>
             </button>
           )}
-
-          <button
-            onClick={() => setShowAddOutpatientModal(true)}
-            className="px-4 py-2.5 bg-emerald-950/40 hover:bg-emerald-950/60 border border-emerald-300/30 text-white font-bold rounded-2xl transition-all duration-200 backdrop-blur-md flex items-center space-x-2 text-xs md:text-sm cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Form Rawat Jalan Ringkas</span>
-          </button>
         </div>
       </div>
 

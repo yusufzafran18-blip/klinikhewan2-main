@@ -634,24 +634,6 @@ export const RawatInapView: React.FC<RawatInapViewProps> = ({
             Sistem pemantauan vital sign per shift, pemberian injeksi obat, pemakaian alkes/BMHP, tindakan medis, & cetak nota rincian A4/F4.
           </p>
         </div>
-
-        <button
-          id="btn-masuk-rawat-inap"
-          onClick={() => {
-            setSelectedPasienId(pasienList[0]?.id || '');
-            setNoKandang(`Kandang Inap #${rawatInapList.length + 1}`);
-            setDokterId(dokterList[0]?.id || '');
-            setDiagnosaInap('');
-            setTarifPerHari(100000);
-            setBiayaTambahan(0);
-            setCatatanAwal('');
-            setShowAddModal(true);
-          }}
-          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-200 flex items-center justify-center space-x-2 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Masuk Rawat Inap Baru</span>
-        </button>
       </div>
 
       {/* Grid Kandang Aktif */}
@@ -660,7 +642,7 @@ export const RawatInapView: React.FC<RawatInapViewProps> = ({
           <div className="col-span-full bg-white p-12 rounded-2xl text-center border border-slate-200 shadow-xs">
             <BedDouble className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <h4 className="text-base font-bold text-slate-700">Belum Ada Pasien Rawat Inap</h4>
-            <p className="text-xs text-slate-400 mt-1">Gunakan tombol "Masuk Rawat Inap Baru" di atas untuk mendaftarkan pasien ke kandang perawatan.</p>
+            <p className="text-xs text-slate-400 mt-1">Pasien rawat inap akan otomatis muncul di sini setelah didaftarkan melalui menu Pendaftaran & Antrian (Layanan Rawat Inap).</p>
           </div>
         ) : (
           rawatInapList.map((inap) => {

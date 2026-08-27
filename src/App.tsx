@@ -219,10 +219,73 @@ export function App() {
   };
 
   // Handlers for Pendaftaran
-  const handleSavePendaftaran = (pdf: Pendaftaran) => {
-    const updated = [pdf, ...pendaftaranList];
-    setPendaftaranList(updated);
-    storageService.savePendaftaranList(updated);
+  const handleSavePendaftaran = async (pdf: Pendaftaran) => {
+    const finalPdf = { ...pdf };
+    const isRawatInap =
+      finalPdf.jenisLayanan === 'Rawat Inap' ||
+      finalPdf.layananDipilih?.toLowerCase().includes('inap') ||
+      Boolean(finalPdf.rawatInapDetail);
+
+    if (isRawatInap) {
+      const newInapId = finalPdf.rawatInapId || ('inap-' + Date.now());
+      finalPdf.rawatInapId = newInapId;
+
+      const currentInapList = storageService.getRawatInapList()?.length
+        ? storageService.getRawatInapList()
+        : rawatInapList;
+
+      const existingIndex = currentInapList.findIndex(
+        (ri) => ri.id === newInapId || (ri.pendaftaranId && ri.pendaftaranId === finalPdf.id)
+      );
+
+      const newInap: RawatInap = {
+        id: newInapId,
+        pendaftaranId: finalPdf.id,
+        pasienId: finalPdf.pasienId,
+        noKandang: finalPdf.rawatInapDetail?.noKandang || 'Kandang Kucing A-01',
+        tanggalMasuk: new Date().toISOString().replace('T', ' ').slice(0, 16),
+        dokterPenanggungJawabId: finalPdf.dokterId || (dokterList[0]?.id || 'drh-1'),
+        diagnosaInap: finalPdf.rawatInapDetail?.diagnosaAwal || finalPdf.keluhanUtama || 'Observasi Rawat Inap',
+        tarifPerHari: Number(finalPdf.rawatInapDetail?.tarifPerHari || 100000),
+        status: 'Aktif',
+        statusPembayaran: 'Belum Lunas',
+        monitoringLogs: [],
+        pemberianObatList: [],
+        penggunaanAlkesList: [],
+        pemakaianBarangList: [],
+        tindakanMedisList: [],
+      };
+
+      let updatedInapList: RawatInap[];
+      if (existingIndex >= 0) {
+        updatedInapList = currentInapList.map((item, idx) => (idx === existingIndex ? { ...item, ...newInap } : item));
+      } else {
+        updatedInapList = [newInap, ...currentInapList];
+      }
+
+      setRawatInapList(updatedInapList);
+      try {
+        await storageService.saveRawatInapList(updatedInapList);
+      } catch (error: any) {
+        console.error('Failed to sync rawat inap from pendaftaran:', error);
+      }
+    }
+
+    const currentPendaftaran = storageService.getPendaftaranList()?.length
+      ? storageService.getPendaftaranList()
+      : pendaftaranList;
+
+    const existingPendaftaranIndex = currentPendaftaran.findIndex((p) => p.id === finalPdf.id);
+    const updatedPendaftaran = existingPendaftaranIndex >= 0
+      ? currentPendaftaran.map((p) => (p.id === finalPdf.id ? finalPdf : p))
+      : [finalPdf, ...currentPendaftaran];
+
+    setPendaftaranList(updatedPendaftaran);
+    try {
+      await storageService.savePendaftaranList(updatedPendaftaran);
+    } catch (error: any) {
+      console.error('Failed to sync pendaftaran list:', error);
+    }
   };
 
   const handleUpdatePendaftaranStatus = (id: string, status: 'Antri' | 'Diperiksa' | 'Selesai' | 'Batal') => {

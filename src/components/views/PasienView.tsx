@@ -3,7 +3,8 @@ import { Pasien, RekamMedis, Dokter, RiwayatVaksinasi, DataKlinik, JenisHewan, J
 import { ModulePermissions } from '../../utils/rbac';
 import {
   Users, Plus, Search, Eye, Award, FileText, FileSpreadsheet,
-  Edit, Trash2, HeartPulse, ShieldAlert, Phone, Mail, MapPin, X
+  Edit, Trash2, HeartPulse, ShieldAlert, Phone, Mail, MapPin, X,
+  LayoutGrid, List, AlertTriangle
 } from 'lucide-react';
 import { exportToExcel } from '../../services/excel';
 import { SuratModal } from '../common/SuratModal';
@@ -35,12 +36,23 @@ export const PasienView: React.FC<PasienViewProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [speciesFilter, setSpeciesFilter] = useState<string>('Semua');
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingPasien, setEditingPasien] = useState<Pasien | null>(null);
 
-  // Detail Modal State
+  // Detail Modal State & Delete Confirmation State
   const [selectedPasienForDetail, setSelectedPasienForDetail] = useState<Pasien | null>(null);
   const [selectedPasienForSurat, setSelectedPasienForSurat] = useState<Pasien | null>(null);
+  const [pasienToDelete, setPasienToDelete] = useState<Pasien | null>(null);
+
+  const handleConfirmDelete = () => {
+    if (!pasienToDelete) return;
+    onDeletePasien(pasienToDelete.id);
+    if (selectedPasienForDetail?.id === pasienToDelete.id) {
+      setSelectedPasienForDetail(null);
+    }
+    setPasienToDelete(null);
+  };
 
   // Default species list options
   const defaultSpecies = ['Kucing', 'Anjing', 'Kelinci', 'Burung', 'Reptil', 'Hamster', 'Sugar Glider', 'Lainnya'];
@@ -218,107 +230,268 @@ export const PasienView: React.FC<PasienViewProps> = ({
               <option key={sp} value={sp}>{sp}</option>
             ))}
           </select>
+
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 cursor-pointer transition-all ${
+                viewMode === 'grid'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="Tampilan Kartu (Grid)"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Grid</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1 cursor-pointer transition-all ${
+                viewMode === 'table'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+              title="Tampilan Tabel Data"
+            >
+              <List className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Tabel</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Grid Card Pasien */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredPasien.length === 0 ? (
-          <div className="col-span-full bg-white p-8 rounded-2xl text-center text-slate-400 border border-slate-200">
-            Tidak ada data pasien hewan yang sesuai pencarian.
-          </div>
-        ) : (
-          filteredPasien.map((p) => {
-            const rmCount = rekamMedisList.filter((r) => r.pasienId === p.id).length;
-            const vakCount = vaksinasiList.filter((v) => v.pasienId === p.id).length;
+      {/* Main Content: Grid or Table View */}
+      {viewMode === 'grid' ? (
+        /* Grid Card Pasien */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredPasien.length === 0 ? (
+            <div className="col-span-full bg-white p-8 rounded-2xl text-center text-slate-400 border border-slate-200">
+              Tidak ada data pasien hewan yang sesuai pencarian.
+            </div>
+          ) : (
+            filteredPasien.map((p) => {
+              const rmCount = rekamMedisList.filter((r) => r.pasienId === p.id).length;
+              const vakCount = vaksinasiList.filter((v) => v.pasienId === p.id).length;
 
-            return (
-              <div key={p.id} className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
-                <div>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      <img
-                        src={p.fotoUrl || 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=150&auto=format&fit=crop&q=80'}
-                        alt={p.namaHewan}
-                        className="w-12 h-12 rounded-xl object-cover border border-slate-200"
-                      />
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <h3 className="text-sm font-extrabold text-slate-800">{p.namaHewan}</h3>
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold border border-indigo-100">
-                            {p.kodePasien}
-                          </span>
+              return (
+                <div key={p.id} className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3">
+                        <img
+                          src={p.fotoUrl || 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=150&auto=format&fit=crop&q=80'}
+                          alt={p.namaHewan}
+                          className="w-12 h-12 rounded-xl object-cover border border-slate-200"
+                        />
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <h3 className="text-sm font-extrabold text-slate-800">{p.namaHewan}</h3>
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold border border-indigo-100">
+                              {p.kodePasien}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500">{p.jenisHewan} • {p.ras}</p>
                         </div>
-                        <p className="text-xs text-slate-500">{p.jenisHewan} • {p.ras}</p>
                       </div>
+
+                      {onRegisterTreatment && (
+                        <button
+                          onClick={() => onRegisterTreatment(p.id)}
+                          className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-xl shadow-xs flex items-center space-x-1 cursor-pointer transition-all"
+                          title="Daftarkan Berobat (Rawat Jalan / Rawat Inap)"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Daftar Berobat</span>
+                        </button>
+                      )}
                     </div>
 
-                    {onRegisterTreatment && (
-                      <button
-                        onClick={() => onRegisterTreatment(p.id)}
-                        className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-xl shadow-xs flex items-center space-x-1 cursor-pointer transition-all"
-                        title="Daftarkan Berobat (Rawat Jalan / Rawat Inap)"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Daftar Berobat</span>
-                      </button>
-                    )}
+                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-600">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Jenis Kelamin:</span>
+                        <span className="font-semibold text-slate-700">{p.jenisKelamin}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Owner (Pemilik):</span>
+                        <span className="font-bold text-slate-800">{p.namaOwner} ({p.noHpOwner})</span>
+                      </div>
+                      {p.catatanKhusus && (
+                        <div className="mt-2 p-2 bg-rose-50 text-rose-800 rounded-lg text-[11px] font-medium border border-rose-100">
+                          ⚠️ <span className="font-bold">Alergi/Catatan:</span> {p.catatanKhusus}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5 text-xs text-slate-600">
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Jenis Kelamin:</span>
-                      <span className="font-semibold text-slate-700">{p.jenisKelamin}</span>
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center space-x-3 text-[11px] font-semibold text-slate-500">
+                      <span className="flex items-center"><HeartPulse className="w-3.5 h-3.5 mr-1 text-indigo-500" /> {rmCount} RM</span>
+                      <span className="flex items-center"><Award className="w-3.5 h-3.5 mr-1 text-emerald-500" /> {vakCount} Vaksin</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Owner (Pemilik):</span>
-                      <span className="font-bold text-slate-800">{p.namaOwner} ({p.noHpOwner})</span>
+
+                    <div className="flex items-center space-x-1">
+                      <button
+                        onClick={() => setSelectedPasienForDetail(p)}
+                        className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 cursor-pointer"
+                        title="Lihat Detail & Rekam Medis"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setSelectedPasienForSurat(p)}
+                        className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 cursor-pointer"
+                        title="Cetak Surat Sehat / Vaksin"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </button>
+                      {permissions?.canEdit !== false && (
+                        <button
+                          onClick={() => handleOpenEdit(p)}
+                          className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer"
+                          title="Edit Pasien"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      )}
+                      {permissions?.canDelete !== false && (
+                        <button
+                          onClick={() => setPasienToDelete(p)}
+                          className="p-1.5 rounded-lg text-rose-500 hover:text-rose-700 hover:bg-rose-50 cursor-pointer transition-colors"
+                          title="Hapus Data Pasien"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
-                    {p.catatanKhusus && (
-                      <div className="mt-2 p-2 bg-rose-50 text-rose-800 rounded-lg text-[11px] font-medium border border-rose-100">
-                        ⚠️ <span className="font-bold">Alergi/Catatan:</span> {p.catatanKhusus}
-                      </div>
-                    )}
                   </div>
                 </div>
+              );
+            })
+          )}
+        </div>
+      ) : (
+        /* Table View Pasien */
+        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-600">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-[10px]">
+                <tr>
+                  <th className="p-3.5">Pasien Hewan</th>
+                  <th className="p-3.5">Spesies / Ras</th>
+                  <th className="p-3.5">Data Pemilik (Owner)</th>
+                  <th className="p-3.5">Kelamin / Umur</th>
+                  <th className="p-3.5 text-center">Riwayat</th>
+                  <th className="p-3.5 text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredPasien.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-slate-400">
+                      Tidak ada data pasien hewan yang sesuai pencarian.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredPasien.map((p) => {
+                    const rmCount = rekamMedisList.filter((r) => r.pasienId === p.id).length;
+                    const vakCount = vaksinasiList.filter((v) => v.pasienId === p.id).length;
 
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center space-x-3 text-[11px] font-semibold text-slate-500">
-                    <span className="flex items-center"><HeartPulse className="w-3.5 h-3.5 mr-1 text-indigo-500" /> {rmCount} RM</span>
-                    <span className="flex items-center"><Award className="w-3.5 h-3.5 mr-1 text-emerald-500" /> {vakCount} Vaksin</span>
-                  </div>
-
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() => setSelectedPasienForDetail(p)}
-                      className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50"
-                      title="Lihat Detail & Rekam Medis"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setSelectedPasienForSurat(p)}
-                      className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50"
-                      title="Cetak Surat Sehat / Vaksin"
-                    >
-                      <FileText className="w-4 h-4" />
-                    </button>
-                    {permissions?.canEdit !== false && (
-                      <button
-                        onClick={() => handleOpenEdit(p)}
-                        className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 cursor-pointer"
-                        title="Edit Pasien"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+                    return (
+                      <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="p-3.5">
+                          <div className="flex items-center space-x-3">
+                            <img
+                              src={p.fotoUrl || 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=100&auto=format&fit=crop&q=80'}
+                              alt={p.namaHewan}
+                              className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
+                            />
+                            <div>
+                              <div className="font-extrabold text-slate-800 text-sm flex items-center space-x-1.5">
+                                <span>{p.namaHewan}</span>
+                              </div>
+                              <span className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 font-bold border border-indigo-100">
+                                {p.kodePasien}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-3.5">
+                          <span className="font-bold text-slate-800 block">{p.jenisHewan}</span>
+                          <span className="text-slate-500 text-[11px]">{p.ras || '-'}</span>
+                        </td>
+                        <td className="p-3.5">
+                          <span className="font-bold text-slate-800 block">{p.namaOwner}</span>
+                          <span className="text-indigo-600 font-mono text-[11px]">{p.noHpOwner}</span>
+                          {p.alamatOwner && (
+                            <span className="text-slate-400 text-[10px] block truncate max-w-xs">{p.alamatOwner}</span>
+                          )}
+                        </td>
+                        <td className="p-3.5">
+                          <span className="font-semibold text-slate-700 block">{p.jenisKelamin}</span>
+                          <span className="text-slate-400 text-[11px]">{p.umurFormat || p.tanggalLahir || '-'}</span>
+                        </td>
+                        <td className="p-3.5 text-center">
+                          <div className="inline-flex flex-col space-y-1 text-[11px]">
+                            <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-semibold">{rmCount} RM</span>
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold">{vakCount} Vaksin</span>
+                          </div>
+                        </td>
+                        <td className="p-3.5 text-right">
+                          <div className="flex items-center justify-end space-x-1">
+                            {onRegisterTreatment && (
+                              <button
+                                onClick={() => onRegisterTreatment(p.id)}
+                                className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-bold rounded-lg cursor-pointer transition-colors mr-1"
+                                title="Daftar Berobat"
+                              >
+                                Berobat
+                              </button>
+                            )}
+                            <button
+                              onClick={() => setSelectedPasienForDetail(p)}
+                              className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg cursor-pointer transition-colors"
+                              title="Lihat Detail & Rekam Medis"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setSelectedPasienForSurat(p)}
+                              className="p-1.5 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg cursor-pointer transition-colors"
+                              title="Cetak Surat Sehat / Vaksin"
+                            >
+                              <FileText className="w-4 h-4" />
+                            </button>
+                            {permissions?.canEdit !== false && (
+                              <button
+                                onClick={() => handleOpenEdit(p)}
+                                className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+                                title="Edit Pasien"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                            )}
+                            {permissions?.canDelete !== false && (
+                              <button
+                                onClick={() => setPasienToDelete(p)}
+                                className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                                title="Hapus Data Pasien"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Modal Add/Edit Pasien */}
       {showFormModal && (
@@ -469,20 +642,38 @@ export const PasienView: React.FC<PasienViewProps> = ({
               </div>
 
               {/* Fixed Footer */}
-              <div className="p-4 border-t border-slate-100 bg-slate-50/90 flex justify-end space-x-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowFormModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-200 transition-all cursor-pointer"
-                >
-                  Simpan Pasien
-                </button>
+              <div className="p-4 border-t border-slate-100 bg-slate-50/90 flex items-center justify-between shrink-0">
+                {editingPasien && permissions?.canDelete !== false ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const p = editingPasien;
+                      setShowFormModal(false);
+                      setPasienToDelete(p);
+                    }}
+                    className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center space-x-1.5"
+                    title="Hapus Data Pasien Ini"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Hapus Pasien</span>
+                  </button>
+                ) : <div />}
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowFormModal(false)}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-200 transition-all cursor-pointer"
+                  >
+                    Simpan Pasien
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -536,6 +727,53 @@ export const PasienView: React.FC<PasienViewProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Modal Detail Footer with Actions */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
+              {permissions?.canDelete !== false ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const p = selectedPasienForDetail;
+                    setPasienToDelete(p);
+                  }}
+                  className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center space-x-1.5"
+                  title="Hapus Data Pasien Ini"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Hapus Pasien Ini</span>
+                </button>
+              ) : <div />}
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const p = selectedPasienForDetail;
+                    setSelectedPasienForDetail(null);
+                    setSelectedPasienForSurat(p);
+                  }}
+                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center space-x-1.5"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>Cetak Surat</span>
+                </button>
+                {permissions?.canEdit !== false && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const p = selectedPasienForDetail;
+                      setSelectedPasienForDetail(null);
+                      handleOpenEdit(p);
+                    }}
+                    className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center space-x-1.5"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    <span>Edit Pasien</span>
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -549,6 +787,94 @@ export const PasienView: React.FC<PasienViewProps> = ({
           klinik={klinik}
           onClose={() => setSelectedPasienForSurat(null)}
         />
+      )}
+
+      {/* Modal Konfirmasi Hapus Pasien */}
+      {pasienToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-6">
+              <div className="flex items-start space-x-4">
+                <div className="p-3 bg-rose-100 text-rose-600 rounded-2xl shrink-0">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-bold text-slate-900">
+                    Hapus Data Pasien?
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Tindakan ini akan menghapus data hewan dan informasi kontak pemilik dari sistem klinik.
+                  </p>
+                </div>
+              </div>
+
+              {/* Patient info preview card */}
+              <div className="mt-4 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center space-x-3">
+                <img
+                  src={pasienToDelete.fotoUrl || 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=150&auto=format&fit=crop&q=80'}
+                  alt={pasienToDelete.namaHewan}
+                  className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-extrabold text-sm text-slate-800 truncate">{pasienToDelete.namaHewan}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 font-bold shrink-0">
+                      {pasienToDelete.kodePasien}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-0.5 truncate">
+                    {pasienToDelete.jenisHewan} • {pasienToDelete.ras}
+                  </p>
+                  <p className="text-[11px] text-slate-500 truncate">
+                    Pemilik: <span className="font-semibold text-slate-700">{pasienToDelete.namaOwner}</span> ({pasienToDelete.noHpOwner})
+                  </p>
+                </div>
+              </div>
+
+              {/* Related records alert if any */}
+              {(() => {
+                const relatedRmCount = rekamMedisList.filter((r) => r.pasienId === pasienToDelete.id).length;
+                const relatedVaksinCount = vaksinasiList.filter((v) => v.pasienId === pasienToDelete.id).length;
+                if (relatedRmCount > 0 || relatedVaksinCount > 0) {
+                  return (
+                    <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-start space-x-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold">Perhatian:</span> Pasien ini memiliki{' '}
+                        {relatedRmCount > 0 && <span className="font-bold">{relatedRmCount} Rekam Medis</span>}
+                        {relatedRmCount > 0 && relatedVaksinCount > 0 && ' dan '}
+                        {relatedVaksinCount > 0 && <span className="font-bold">{relatedVaksinCount} Riwayat Vaksinasi</span>}.
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
+              <p className="text-xs text-rose-600 font-medium mt-3 bg-rose-50 p-2.5 rounded-xl border border-rose-100">
+                ⚠️ Apakah Anda yakin ingin menghapus data pasien ini secara permanen?
+              </p>
+            </div>
+
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end space-x-2">
+              <button
+                type="button"
+                onClick={() => setPasienToDelete(null)}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-rose-200 cursor-pointer flex items-center space-x-1.5"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Ya, Hapus Pasien</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

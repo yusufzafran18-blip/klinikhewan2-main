@@ -1863,6 +1863,24 @@ app.post('/api/data/sync', async (req: Request, res: Response) => {
               catatan_khusus: p.catatanKhusus || null,
             });
           }
+
+          // Prune patients that were removed from the array
+          try {
+            const pool = getMySQLPool();
+            if (pool) {
+              if (data.pasien.length > 0) {
+                const validIds = data.pasien.map((p: any) => p.id).filter(Boolean);
+                if (validIds.length > 0) {
+                  const placeholders = validIds.map(() => '?').join(',');
+                  await pool.query(`DELETE FROM pasien WHERE id NOT IN (${placeholders})`, validIds);
+                }
+              } else {
+                await pool.query('DELETE FROM pasien');
+              }
+            }
+          } catch (delErr: any) {
+            console.warn('[AI Studio] MySQL prune pasien warning:', delErr.message);
+          }
         }
 
         if (Array.isArray(data.barang)) {
@@ -1972,6 +1990,21 @@ app.post('/api/data/sync', async (req: Request, res: Response) => {
               rawat_inap_detail_json: JSON.stringify(pd.rawatInapDetail || {}),
               catatan: pd.catatan || null,
             });
+          }
+          // Prune removed pendaftaran if live
+          try {
+            const keepIds = data.pendaftaran.map((pd: any) => pd.id).filter(Boolean);
+            const pool = getMySQLPool();
+            if (pool) {
+              if (keepIds.length > 0) {
+                const placeholders = keepIds.map(() => '?').join(',');
+                await pool.query(`DELETE FROM pendaftaran WHERE id NOT IN (${placeholders})`, keepIds);
+              } else {
+                await pool.query('DELETE FROM pendaftaran');
+              }
+            }
+          } catch (delErr: any) {
+            console.warn('[AI Studio] MySQL prune pendaftaran warning:', delErr.message);
           }
         }
 
@@ -2289,6 +2322,54 @@ app.post('/api/data/sync', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error('Error in /api/data/sync:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Delete Pasien Endpoint
+app.delete(['/api/pasien/:id', '/api/data/pasien/:id'], async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    inMemoryStore.pasien = inMemoryStore.pasien.filter((p: any) => p.id !== id);
+    const isLive = await checkMysqlConnection();
+    if (isLive) {
+      try {
+        const pool = getMySQLPool();
+        if (pool) {
+          await pool.query('DELETE FROM pasien WHERE id = ?', [id]);
+        }
+      } catch (dbErr: any) {
+        console.warn('[AI Studio] MySQL delete pasien error:', dbErr.message);
+      }
+    }
+    broadcastDataUpdated();
+    return res.json({ success: true, message: 'Data pasien berhasil dihapus' });
+  } catch (error: any) {
+    console.error('Error deleting pasien:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Delete Pendaftaran Endpoint
+app.delete(['/api/pendaftaran/:id', '/api/data/pendaftaran/:id'], async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    inMemoryStore.pendaftaran = inMemoryStore.pendaftaran.filter((pd: any) => pd.id !== id);
+    const isLive = await checkMysqlConnection();
+    if (isLive) {
+      try {
+        const pool = getMySQLPool();
+        if (pool) {
+          await pool.query('DELETE FROM pendaftaran WHERE id = ?', [id]);
+        }
+      } catch (dbErr: any) {
+        console.warn('[AI Studio] MySQL delete pendaftaran error:', dbErr.message);
+      }
+    }
+    broadcastDataUpdated();
+    return res.json({ success: true, message: 'Data pendaftaran / antrian berhasil dihapus' });
+  } catch (error: any) {
+    console.error('Error deleting pendaftaran:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 });

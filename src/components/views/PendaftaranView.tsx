@@ -4,7 +4,8 @@ import {
   ClipboardList, Plus, Search, Clock, CheckCircle2, XCircle,
   Stethoscope, Calendar, Phone, User as UserIcon, BedDouble,
   ArrowRight, ShieldAlert, Sparkles, Check, AlertCircle, Info,
-  Filter, HeartPulse, MapPin, Tag, RefreshCw, Printer
+  Filter, HeartPulse, MapPin, Tag, RefreshCw, Printer,
+  Trash2, AlertTriangle
 } from 'lucide-react';
 
 interface PendaftaranViewProps {
@@ -13,9 +14,16 @@ interface PendaftaranViewProps {
   dokterList: Dokter[];
   spesiesList?: Spesies[];
   activeUser: User;
+  permissions?: {
+    canDelete?: boolean;
+    canEdit?: boolean;
+    canCreate?: boolean;
+    canView?: boolean;
+  };
   onSavePendaftaran: (pdf: Pendaftaran) => void | Promise<void>;
   onSavePasien?: (pasien: Pasien) => void | Promise<void>;
   onUpdateStatus: (id: string, status: 'Antri' | 'Diperiksa' | 'Selesai' | 'Batal') => void;
+  onDeletePendaftaran?: (id: string) => void | Promise<void>;
   onStartExamine: (pendaftaran: Pendaftaran) => void;
   onNavigateToRawatInap?: (inapId?: string) => void;
   onNavigateToRawatJalan?: (pendaftaran?: Pendaftaran) => void;
@@ -29,9 +37,11 @@ export const PendaftaranView: React.FC<PendaftaranViewProps> = ({
   dokterList = [],
   spesiesList = [],
   activeUser,
+  permissions,
   onSavePendaftaran,
   onSavePasien,
   onUpdateStatus,
+  onDeletePendaftaran,
   onStartExamine,
   onNavigateToRawatInap,
   onNavigateToRawatJalan,
@@ -39,6 +49,8 @@ export const PendaftaranView: React.FC<PendaftaranViewProps> = ({
   onClearPreselectedPasien,
 }) => {
   const [showModal, setShowModal] = useState(false);
+  const [pendaftaranToDelete, setPendaftaranToDelete] = useState<Pendaftaran | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [activeRegistrationType, setActiveRegistrationType] = useState<'existing' | 'new'>('existing');
   
   // Tab Filter in Queue List
@@ -209,6 +221,19 @@ export const PendaftaranView: React.FC<PendaftaranViewProps> = ({
       setNewHewanNama('');
       setNewHewanWarna('');
       setNewHewanCatatan('');
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!pendaftaranToDelete || !onDeletePendaftaran) return;
+    setIsDeleting(true);
+    try {
+      await onDeletePendaftaran(pendaftaranToDelete.id);
+      setPendaftaranToDelete(null);
+    } catch (err: any) {
+      console.error('Error deleting pendaftaran:', err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -596,10 +621,21 @@ export const PendaftaranView: React.FC<PendaftaranViewProps> = ({
                           {p.status !== 'Selesai' && p.status !== 'Batal' && (
                             <button
                               onClick={() => onUpdateStatus(p.id, 'Batal')}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
-                              title="Batalkan Pendaftaran"
+                              className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg cursor-pointer transition-colors"
+                              title="Batalkan Pendaftaran (Ubah Status ke Batal)"
                             >
                               <XCircle className="w-4 h-4" />
+                            </button>
+                          )}
+
+                          {/* Tombol Hapus dari Daftar Antrian */}
+                          {onDeletePendaftaran && permissions?.canDelete !== false && (
+                            <button
+                              onClick={() => setPendaftaranToDelete(p)}
+                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                              title="Hapus Permanen dari Daftar Antrian"
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           )}
                         </div>
@@ -1006,6 +1042,101 @@ export const PendaftaranView: React.FC<PendaftaranViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Hapus Data Antrian */}
+      {pendaftaranToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Header Modal */}
+            <div className="p-6 bg-gradient-to-br from-rose-50 to-orange-50 border-b border-rose-100 flex items-start space-x-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-rose-200">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-slate-800 leading-snug">Hapus Data Antrian?</h3>
+                <p className="text-xs text-rose-700 mt-1">
+                  Data pendaftaran ini akan dihapus secara permanen dari daftar antrian pelayanan.
+                </p>
+              </div>
+            </div>
+
+            {/* Content Details */}
+            <div className="p-6 space-y-4">
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-slate-500">Nomor Antrian:</span>
+                  <span className="font-mono font-bold text-xs bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-slate-800 shadow-xs">
+                    {pendaftaranToDelete.noAntrian || `ID-${pendaftaranToDelete.id.slice(-4)}`}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-slate-500">Pasien Hewan:</span>
+                  <span className="font-bold text-xs text-slate-800">
+                    {pasienList.find(ps => ps.id === pendaftaranToDelete.pasienId)?.namaHewan || 'Pasien'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-slate-500">Nama Owner:</span>
+                  <span className="font-medium text-xs text-slate-700">
+                    {pasienList.find(ps => ps.id === pendaftaranToDelete.pasienId)?.namaOwner || '-'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-slate-500">Dokter PJ:</span>
+                  <span className="font-medium text-xs text-slate-700">
+                    {dokterList.find(d => d.id === pendaftaranToDelete.dokterId)?.nama || '-'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-slate-500">Layanan:</span>
+                  <span className="font-medium text-xs text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                    {pendaftaranToDelete.layananDipilih || pendaftaranToDelete.jenisLayanan || 'Rawat Jalan'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-semibold text-slate-500">Status Saat Ini:</span>
+                  <span className={`font-bold text-[10px] px-2.5 py-0.5 rounded-full ${
+                    pendaftaranToDelete.status === 'Antri' ? 'bg-amber-100 text-amber-800' :
+                    pendaftaranToDelete.status === 'Diperiksa' ? 'bg-blue-100 text-blue-800' :
+                    pendaftaranToDelete.status === 'Selesai' ? 'bg-emerald-100 text-emerald-800' :
+                    'bg-rose-100 text-rose-800'
+                  }`}>
+                    {pendaftaranToDelete.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200/80 flex items-start space-x-2 text-[11px] text-amber-900">
+                <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>
+                  Pastikan pasien tidak sedang dalam tahap pemeriksaan medis yang membutuhkan sinkronisasi data rekam medis.
+                </span>
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end space-x-2">
+              <button
+                type="button"
+                onClick={() => setPendaftaranToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md shadow-rose-200 flex items-center space-x-2 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isDeleting ? 'Menghapus...' : 'Ya, Hapus Antrian'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

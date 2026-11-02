@@ -153,6 +153,7 @@ interface StorageServiceInterface {
   getPasienList(): Pasien[];
   savePasien(pasien: Pasien[]): Promise<void>;
   savePasienList(pasien: Pasien[]): Promise<void>;
+  deletePasien(id: string): Promise<void>;
   getBarang(): Barang[];
   getBarangList(): Barang[];
   saveBarang(barang: Barang[]): Promise<void>;
@@ -173,6 +174,7 @@ interface StorageServiceInterface {
   getPendaftaranList(): Pendaftaran[];
   savePendaftaran(pendaftaran: Pendaftaran[]): Promise<void>;
   savePendaftaranList(pendaftaran: Pendaftaran[]): Promise<void>;
+  deletePendaftaran(id: string): Promise<void>;
   getRekamMedis(): RekamMedis[];
   getRekamMedisList(): RekamMedis[];
   saveRekamMedis(rm: RekamMedis[]): Promise<void>;
@@ -413,6 +415,17 @@ export const storageService: StorageServiceInterface = {
     await this.savePasien(pasien);
   },
 
+  async deletePasien(id: string): Promise<void> {
+    const current = this.getPasienList();
+    const updated = current.filter((p) => p.id !== id);
+    cacheManager.set('pasien', updated);
+    notifyListeners();
+    try {
+      await fetch(`/api/pasien/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    } catch (_) {}
+    await persistCache('pasien', updated, { pasien: updated });
+  },
+
   // ========== BARANG ==========
 
   getBarang(): Barang[] {
@@ -501,6 +514,17 @@ export const storageService: StorageServiceInterface = {
 
   async savePendaftaranList(pendaftaran: Pendaftaran[]): Promise<void> {
     await this.savePendaftaran(pendaftaran);
+  },
+
+  async deletePendaftaran(id: string): Promise<void> {
+    const current = this.getPendaftaranList();
+    const updated = current.filter((pd) => pd.id !== id);
+    cacheManager.set('pendaftaran', updated);
+    notifyListeners();
+    try {
+      await fetch(`/api/pendaftaran/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    } catch (_) {}
+    await persistCache('pendaftaran', updated, { pendaftaran: updated });
   },
 
   // ========== REKAM MEDIS ==========

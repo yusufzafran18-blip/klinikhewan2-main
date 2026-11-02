@@ -294,6 +294,16 @@ export function App() {
     storageService.savePendaftaranList(updated);
   };
 
+  const handleDeletePendaftaran = async (id: string) => {
+    const updated = pendaftaranList.filter((p) => p.id !== id);
+    setPendaftaranList(updated);
+    try {
+      await storageService.deletePendaftaran(id);
+    } catch (err: any) {
+      console.error('Gagal menghapus antrian pendaftaran:', err);
+    }
+  };
+
   const handleStartExamine = (pendaftaran: Pendaftaran) => {
     setActivePendaftaranForSOAP(pendaftaran);
     setActiveTab('rekam_medis');
@@ -309,10 +319,14 @@ export function App() {
     storageService.savePasienList(updated);
   };
 
-  const handleDeletePasien = (id: string) => {
+  const handleDeletePasien = async (id: string) => {
     const updated = pasienList.filter((p) => p.id !== id);
     setPasienList(updated);
-    storageService.savePasienList(updated);
+    try {
+      await storageService.deletePasien(id);
+    } catch (err: any) {
+      console.error('Gagal menghapus data pasien:', err);
+    }
   };
 
   // Handlers for Rekam Medis
@@ -1289,9 +1303,11 @@ export function App() {
                     dokterList={dokterList}
                     spesiesList={spesiesList}
                     activeUser={activeUser}
+                    permissions={currentTabPerms}
                     onSavePendaftaran={handleSavePendaftaran}
                     onSavePasien={handleSavePasien}
                     onUpdateStatus={handleUpdatePendaftaranStatus}
+                    onDeletePendaftaran={handleDeletePendaftaran}
                     onStartExamine={handleStartExamine}
                     onNavigateToRawatInap={(inapId) => setActiveTab('rawat_inap')}
                     onNavigateToRawatJalan={(pendaftaran) => {

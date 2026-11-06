@@ -1240,32 +1240,36 @@ export function App() {
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-800 antialiased selection:bg-indigo-500 selection:text-white pb-16 md:pb-0">
       
       {/* Top Navbar */}
-      <Navbar
-        activeUser={activeUser}
-        userList={userList}
-        klinik={klinik}
-        barangList={barangList}
-        onRoleChange={handleRoleChange}
-        onLogout={handleLogout}
-        onNavigateTab={(tab) => setActiveTab(tab)}
-        onToggleMobileMenu={() => setIsMobileOpen((prev) => !prev)}
-      />
+      <div className="print:hidden no-print">
+        <Navbar
+          activeUser={activeUser}
+          userList={userList}
+          klinik={klinik}
+          barangList={barangList}
+          onRoleChange={handleRoleChange}
+          onLogout={handleLogout}
+          onNavigateTab={(tab) => setActiveTab(tab)}
+          onToggleMobileMenu={() => setIsMobileOpen((prev) => !prev)}
+        />
+      </div>
 
       {/* Main Container Layout */}
       <div className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-6 flex flex-col md:flex-row gap-6">
         
         {/* Sidebar Navigation */}
-        <Sidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          userRole={activeUser.role}
-          rbacConfig={rbacConfig}
-          queueCount={queueCount}
-          inpatientCount={inpatientCount}
-          isMobileOpen={isMobileOpen}
-          onCloseMobile={() => setIsMobileOpen(false)}
-          onLogout={handleLogout}
-        />
+        <div className="print:hidden no-print">
+          <Sidebar
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            userRole={activeUser.role}
+            rbacConfig={rbacConfig}
+            queueCount={queueCount}
+            inpatientCount={inpatientCount}
+            isMobileOpen={isMobileOpen}
+            onCloseMobile={() => setIsMobileOpen(false)}
+            onLogout={handleLogout}
+          />
+        </div>
 
         {/* Content View Router with RBAC Guard */}
         <main className="flex-1 min-w-0">
@@ -1578,7 +1582,7 @@ export function App() {
       </div>
 
       {/* Mobile Sticky Bottom Navigation Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 z-40 px-2 py-1.5 flex items-center justify-around shadow-2xl">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 z-40 px-2 py-1.5 flex items-center justify-around shadow-2xl print:hidden no-print">
         <button
           onClick={() => setActiveTab('dashboard')}
           className={`flex flex-col items-center py-1 px-2 rounded-lg text-[10px] font-semibold transition-colors ${

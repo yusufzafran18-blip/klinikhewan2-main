@@ -1499,27 +1499,56 @@ Terima kasih atas kepercayaannya. Semoga ${pasien.namaHewan} lekas pulih!`;
       {/* Print Specific Embedded Styles */}
       <style>{`
         @media print {
-          body {
-            background: white !important;
-            color: black !important;
-            margin: 0 !important;
-            padding: 0 !important;
+          body * {
+            visibility: hidden !important;
           }
-          .no-print {
+          nav, aside, header, footer,
+          .no-print,
+          .print\\:hidden,
+          [class*="backdrop-blur"],
+          .fixed.bottom-0 {
             display: none !important;
+            visibility: hidden !important;
+          }
+          #inpatient-a4-printable,
+          #inpatient-a4-printable * {
+            visibility: visible !important;
           }
           #inpatient-a4-printable {
-            box-shadow: none !important;
-            border: none !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
             width: 100% !important;
-            max-width: none !important;
-            min-height: auto !important;
+            max-width: 100% !important;
+            min-height: 0 !important;
+            height: auto !important;
             padding: 0 !important;
             margin: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            background: #ffffff !important;
+            display: block !important;
+            overflow: visible !important;
+          }
+          #inpatient-a4-printable table {
+            page-break-inside: auto;
+            break-inside: auto;
+            width: 100% !important;
+          }
+          #inpatient-a4-printable tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          #inpatient-a4-printable thead {
+            display: table-header-group !important;
+          }
+          .print-avoid-break {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
           @page {
             size: ${paperSize === 'A4' ? 'A4 portrait' : '215mm 330mm portrait'};
-            margin: 12mm;
+            margin: 8mm 10mm 8mm 10mm;
           }
         }
       `}</style>

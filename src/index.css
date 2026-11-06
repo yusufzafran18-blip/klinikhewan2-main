@@ -1,1 +1,28 @@
 @import "tailwindcss";
+
+@media print {
+  /* Hide all application navigation chrome, sidebars, and fixed bars */
+  .no-print,
+  .print\:hidden,
+  #app-navbar,
+  #app-sidebar,
+  .fixed.bottom-0,
+  nav,
+  aside {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Reset body and html for clean crisp print */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

@@ -1037,27 +1037,27 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
         <div className="p-6 sm:p-8 overflow-y-auto print:overflow-visible print:p-0 print:m-0 flex-1 bg-white font-sans text-slate-800 text-xs">
           <div
             id="outpatient-a4-printable"
-            className={`mx-auto bg-white print:w-full ${
-              paperSize === 'A4' ? 'min-h-[297mm] max-w-[210mm]' : 'min-h-[330mm] max-w-[215mm]'
+            className={`mx-auto bg-white print:w-full print:max-w-none print:min-h-0 print:h-auto print:p-0 print:m-0 print:block ${
+              paperSize === 'A4' ? 'sm:min-h-[297mm] max-w-[210mm]' : 'sm:min-h-[330mm] max-w-[215mm]'
             } flex flex-col justify-between`}
           >
             {/* 1. KOP KLINIK FORMAL */}
-            <div className="border-b-2 border-slate-900 pb-3 mb-4">
+            <div className="border-b-2 border-slate-900 pb-2.5 mb-3 print:pb-2 print:mb-2 print-avoid-break">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3.5">
                   {normKlinik.logoUrl ? (
                     <img
                       src={normKlinik.logoUrl}
                       alt={normKlinik.namaKlinik}
-                      className="w-16 h-16 object-contain rounded-xl border border-slate-200 p-1"
+                      className="w-14 h-14 object-contain rounded-xl border border-slate-200 p-1"
                     />
                   ) : (
-                    <div className="w-16 h-16 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-xs">
-                      <Stethoscope className="w-8 h-8 text-emerald-400" />
+                    <div className="w-14 h-14 bg-slate-900 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-xs">
+                      <Stethoscope className="w-7 h-7 text-emerald-400" />
                     </div>
                   )}
                   <div>
-                    <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight uppercase">
+                    <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight uppercase leading-tight">
                       {normKlinik.namaKlinik}
                     </h1>
                     <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
@@ -1087,16 +1087,16 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
             </div>
 
             {/* 2. JUDUL DOKUMEN & METADATA GRID */}
-            <div className="mb-4">
-              <div className="text-center py-1.5 mb-3 bg-slate-900 text-white rounded-lg">
+            <div className="mb-3 print:mb-2 print-avoid-break">
+              <div className="text-center py-1 mb-2 bg-slate-900 text-white rounded-lg">
                 <h2 className="font-black text-xs sm:text-sm tracking-wide uppercase">
                   RINCIAN BIAYA PEMERIKSAAN & PENGOBATAN RAWAT JALAN (OUTPATIENT)
                 </h2>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 text-[11px] leading-relaxed">
+              <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[11px] leading-relaxed">
                 {/* Kolom Kiri: Info Pasien & Owner */}
-                <div className="space-y-1 border-r border-slate-200 pr-3">
+                <div className="space-y-0.5 border-r border-slate-200 pr-2.5">
                   <div className="flex">
                     <span className="w-24 text-slate-500 font-medium">No. Rekam Medis:</span>
                     <span className="font-bold text-slate-900 font-mono">{rekamMedis.noRM}</span>
@@ -1116,7 +1116,7 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
                 </div>
 
                 {/* Kolom Kanan: Info Pemeriksaan & Dokter */}
-                <div className="space-y-1 pl-1">
+                <div className="space-y-0.5 pl-1">
                   <div className="flex">
                     <span className="w-28 text-slate-500 font-medium">Tanggal Periksa:</span>
                     <span className="font-bold text-slate-900">{rekamMedis.tanggal}</span>
@@ -1140,18 +1140,18 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
             </div>
 
             {/* 3. TABEL ITEM RINCIAN BIAYA (Itemized Table) */}
-            <div className="mb-4">
+            <div className="mb-3 print:mb-2">
               <table className="w-full text-left text-[11px] border-collapse border border-slate-300">
                 <thead>
                   <tr className="bg-slate-800 text-white font-bold uppercase text-[10px] tracking-wider">
-                    <th className="p-2 border border-slate-400 text-center w-8">No</th>
-                    <th className="p-2 border border-slate-400 w-32">Kategori</th>
-                    <th className="p-2 border border-slate-400">Deskripsi Layanan / Obat / BMHP</th>
-                    <th className="p-2 border border-slate-400 text-center w-14">Qty</th>
-                    <th className="p-2 border border-slate-400 text-center w-16">Satuan</th>
-                    <th className="p-2 border border-slate-400 text-right w-24">Harga (Rp)</th>
-                    <th className="p-2 border border-slate-400 text-right w-28">Subtotal (Rp)</th>
-                    {isEditMode && <th className="p-2 border border-slate-400 text-center w-10 print:hidden">Aksi</th>}
+                    <th className="p-1.5 border border-slate-400 text-center w-8">No</th>
+                    <th className="p-1.5 border border-slate-400 w-28">Kategori</th>
+                    <th className="p-1.5 border border-slate-400">Deskripsi Layanan / Obat / BMHP</th>
+                    <th className="p-1.5 border border-slate-400 text-center w-12">Qty</th>
+                    <th className="p-1.5 border border-slate-400 text-center w-14">Satuan</th>
+                    <th className="p-1.5 border border-slate-400 text-right w-24">Harga (Rp)</th>
+                    <th className="p-1.5 border border-slate-400 text-right w-28">Subtotal (Rp)</th>
+                    {isEditMode && <th className="p-1.5 border border-slate-400 text-center w-10 print:hidden">Aksi</th>}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -1163,11 +1163,11 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
                     </tr>
                   ) : (
                     billItems.map((item, idx) => (
-                      <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}>
-                        <td className="p-2 border border-slate-200 text-center font-semibold text-slate-600">{idx + 1}</td>
-                        <td className="p-2 border border-slate-200 font-semibold text-slate-700">
+                      <tr key={item.id} className={`print-avoid-break ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}`}>
+                        <td className="p-1.5 border border-slate-200 text-center font-semibold text-slate-600">{idx + 1}</td>
+                        <td className="p-1.5 border border-slate-200 font-semibold text-slate-700">
                           <span
-                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                            className={`px-1.5 py-0.5 rounded text-[9px] font-bold inline-block ${
                               item.kategori === 'Jasa & Tindakan'
                                 ? 'bg-indigo-100 text-indigo-800'
                                 : item.kategori === 'Obat-Obatan'
@@ -1182,7 +1182,7 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
                             {item.kategori}
                           </span>
                         </td>
-                        <td className="p-2 border border-slate-200 font-bold text-slate-900">
+                        <td className="p-1.5 border border-slate-200 font-bold text-slate-900">
                           <div>{item.namaItem}</div>
                           {isEditMode ? (
                             <input
@@ -1200,7 +1200,7 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
                             )
                           )}
                         </td>
-                        <td className="p-2 border border-slate-200 text-center font-bold text-slate-800">
+                        <td className="p-1.5 border border-slate-200 text-center font-bold text-slate-800">
                           {isEditMode ? (
                             <input
                               type="number"
@@ -1213,7 +1213,7 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
                             item.jumlah
                           )}
                         </td>
-                        <td className="p-2 border border-slate-200 text-center text-slate-600">
+                        <td className="p-1.5 border border-slate-200 text-center text-slate-600">
                           {isEditMode ? (
                             <input
                               type="text"
@@ -1225,7 +1225,7 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
                             item.satuan
                           )}
                         </td>
-                        <td className="p-2 border border-slate-200 text-right text-slate-700 font-mono font-medium">
+                        <td className="p-1.5 border border-slate-200 text-right text-slate-700 font-mono font-medium">
                           {isEditMode ? (
                             <input
                               type="number"
@@ -1238,7 +1238,7 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
                             (item.hargaSatuan || 0).toLocaleString('id-ID')
                           )}
                         </td>
-                        <td className="p-2 border border-slate-200 text-right font-bold text-slate-900 font-mono">
+                        <td className="p-1.5 border border-slate-200 text-right font-bold text-slate-900 font-mono">
                           {(item.subtotal || 0).toLocaleString('id-ID')}
                         </td>
                         {isEditMode && (
@@ -1261,9 +1261,9 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
             </div>
 
             {/* 4. RINGKASAN SUB-KATEGORI & GRAND TOTAL BOX */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 print:grid-cols-2 gap-3 mb-3 print:mb-2.5 print-avoid-break">
               {/* Kolom Kiri: Catatan & Anjuran Dokter */}
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-[10px] space-y-1.5">
+              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[10px] space-y-1">
                 <h4 className="font-bold text-slate-900 uppercase tracking-wider text-[10px] flex items-center space-x-1">
                   <Stethoscope className="w-3.5 h-3.5 text-emerald-700" />
                   <span>Anjuran Perawatan & Kontrol:</span>
@@ -1285,7 +1285,7 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
               </div>
 
               {/* Kolom Kanan: Rincian Angka Keuangan */}
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-[11px] space-y-1 font-medium">
+              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[11px] space-y-0.5 font-medium">
                 {subtotalTindakan > 0 && (
                   <div className="flex justify-between text-slate-600">
                     <span>Subtotal Jasa & Tindakan:</span>
@@ -1323,7 +1323,7 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
                   </div>
                 )}
 
-                <div className="border-t-2 border-slate-900 pt-1.5 flex justify-between items-center">
+                <div className="border-t-2 border-slate-900 pt-1 flex justify-between items-center">
                   <span className="text-xs font-black text-slate-900 uppercase tracking-wide">GRAND TOTAL:</span>
                   <span className="text-sm font-black text-slate-900 font-mono">
                     Rp {finalGrandTotal.toLocaleString('id-ID')}
@@ -1338,10 +1338,10 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
             </div>
 
             {/* 5. TANDA TANGAN & PENGESAHAN (Signatures) */}
-            <div className="pt-2 border-t border-slate-300 grid grid-cols-3 gap-2 text-center text-[10px] text-slate-700">
+            <div className="pt-2 border-t border-slate-300 grid grid-cols-3 gap-2 text-center text-[10px] text-slate-700 print-avoid-break print:pt-2">
               <div>
                 <p className="text-slate-500">Pemilik Pasien,</p>
-                <div className="h-14 flex items-end justify-center">
+                <div className="h-12 flex items-end justify-center">
                   <span className="font-bold text-slate-900 border-b border-slate-400 pb-0.5 px-4">
                     {pasien?.namaOwner || 'Owner / Klien'}
                   </span>
@@ -1350,7 +1350,7 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
 
               <div>
                 <p className="text-slate-500">Kasir / Bagian Administrasi,</p>
-                <div className="h-14 flex items-end justify-center">
+                <div className="h-12 flex items-end justify-center">
                   <span className="font-bold text-slate-900 border-b border-slate-400 pb-0.5 px-4">
                     {transaksi?.kasirId ? 'Petugas Kasir' : 'Kasir Poliklinik'}
                   </span>
@@ -1360,7 +1360,7 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
               <div>
                 <p className="text-slate-500">Tanggal: {rekamMedis.tanggal}</p>
                 <p className="text-slate-500">Dokter Hewan Pemeriksa,</p>
-                <div className="h-14 flex items-end justify-center">
+                <div className="h-12 flex items-end justify-center">
                   <span className="font-bold text-slate-900 border-b border-slate-400 pb-0.5 px-2">
                     {dokter?.nama || normKlinik.namaPenanggungJawab || 'drh. Penanggung Jawab'}
                   </span>
@@ -1370,13 +1370,86 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
             </div>
 
             {/* 6. FOOTER WATERMARK */}
-            <div className="mt-3 pt-2 border-t border-slate-200 text-center text-[9px] text-slate-400">
+            <div className="mt-2 pt-1 border-t border-slate-200 text-center text-[9px] text-slate-400 print-avoid-break">
               Dokumen ini diterbitkan secara resmi oleh SIM-Klinik Hewan {normKlinik.namaKlinik}. Terima kasih atas kunjungan Anda.
             </div>
           </div>
         </div>
 
       </div>
+
+      {/* Print Specific Embedded Styles */}
+      <style>{`
+        @media print {
+          /* 1. Global hide of everything else in document body */
+          body * {
+            visibility: hidden !important;
+          }
+
+          /* 2. Completely eliminate display of app chrome, sidebars, navbars, and background elements */
+          nav, aside, header, footer,
+          .no-print,
+          .print\\:hidden,
+          [class*="backdrop-blur"],
+          .fixed.bottom-0 {
+            display: none !important;
+            visibility: hidden !important;
+          }
+
+          /* 3. Make ONLY outpatient receipt visible */
+          #outpatient-a4-printable,
+          #outpatient-a4-printable * {
+            visibility: visible !important;
+          }
+
+          /* 4. Position printable receipt at absolute top-left of page with zero margin offset */
+          #outpatient-a4-printable {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: 0 !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            background: #ffffff !important;
+            display: block !important;
+            overflow: visible !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+          }
+
+          /* 5. Table & section pagination behavior */
+          #outpatient-a4-printable table {
+            page-break-inside: auto;
+            break-inside: auto;
+            width: 100% !important;
+          }
+
+          #outpatient-a4-printable tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          #outpatient-a4-printable thead {
+            display: table-header-group !important;
+          }
+
+          .print-avoid-break {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          /* 6. Page setup */
+          @page {
+            size: ${paperSize === 'A4' ? 'A4 portrait' : '215mm 330mm portrait'};
+            margin: 8mm 10mm 8mm 10mm;
+          }
+        }
+      `}</style>
     </div>
   );
 };

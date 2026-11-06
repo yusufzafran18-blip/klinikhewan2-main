@@ -574,25 +574,32 @@ export const InpatientA4ReceiptModal: React.FC<InpatientA4ReceiptModalProps> = (
     }
 
     try {
-      let printFrame = document.getElementById('receipt-print-iframe') as HTMLIFrameElement;
-      if (!printFrame) {
-        printFrame = document.createElement('iframe');
-        printFrame.id = 'receipt-print-iframe';
-        printFrame.style.position = 'fixed';
-        printFrame.style.right = '0';
-        printFrame.style.bottom = '0';
-        printFrame.style.width = '0';
-        printFrame.style.height = '0';
-        printFrame.style.border = '0';
-        printFrame.style.visibility = 'hidden';
-        document.body.appendChild(printFrame);
+      // Clean up any stale print iframe
+      const oldFrame = document.getElementById('receipt-print-iframe');
+      if (oldFrame) {
+        oldFrame.remove();
       }
+
+      // Create fresh iframe placed safely offscreen with actual dimensions
+      // NOTE: Do NOT use visibility: hidden or width: 0, as Chromium print engine produces a blank white page!
+      const printFrame = document.createElement('iframe');
+      printFrame.id = 'receipt-print-iframe';
+      printFrame.style.position = 'fixed';
+      printFrame.style.left = '-9999px';
+      printFrame.style.top = '-9999px';
+      printFrame.style.width = '210mm';
+      printFrame.style.height = '297mm';
+      printFrame.style.border = '0';
+      printFrame.style.opacity = '0';
+      printFrame.style.pointerEvents = 'none';
+      document.body.appendChild(printFrame);
 
       const frameDoc = printFrame.contentWindow?.document;
       if (!frameDoc) {
         throw new Error('Frame document not accessible');
       }
 
+      // Collect link stylesheets & style tags
       const styleTags = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
         .map((node) => node.outerHTML)
         .join('\n');
@@ -606,6 +613,12 @@ export const InpatientA4ReceiptModal: React.FC<InpatientA4ReceiptModalProps> = (
             <title>${docTitle}</title>
             ${styleTags}
             <style>
+              /* Guarantee all elements in print iframe are visible and colored */
+              *, *::before, *::after {
+                visibility: visible !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
               @page {
                 size: ${paperSize === 'A4' ? 'A4 portrait' : '215mm 330mm portrait'};
                 margin: 8mm 10mm;
@@ -619,8 +632,6 @@ export const InpatientA4ReceiptModal: React.FC<InpatientA4ReceiptModalProps> = (
                 height: auto !important;
                 min-height: 0 !important;
                 overflow: visible !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
                 font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
               }
               #inpatient-a4-printable {
@@ -648,6 +659,10 @@ export const InpatientA4ReceiptModal: React.FC<InpatientA4ReceiptModalProps> = (
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
               }
+              .no-print, .print\\:hidden {
+                display: none !important;
+                visibility: hidden !important;
+              }
             </style>
           </head>
           <body>
@@ -667,7 +682,7 @@ export const InpatientA4ReceiptModal: React.FC<InpatientA4ReceiptModalProps> = (
           window.print();
           setTimeout(() => { document.title = prevTitle; }, 500);
         }
-      }, 250);
+      }, 300);
     } catch (err) {
       console.warn('Iframe print error, falling back to direct window.print:', err);
       const prevTitle = document.title;
@@ -1608,10 +1623,9 @@ Terima kasih atas kepercayaannya. Semoga ${pasien.namaHewan} lekas pulih!`;
       {/* Print Specific Embedded Styles */}
       <style>{`
         @media print {
-          body * {
-            visibility: hidden !important;
-          }
           nav, aside, header, footer,
+          #app-navbar,
+          #app-sidebar,
           .no-print,
           .print\\:hidden,
           .fixed.bottom-0 {
@@ -1642,14 +1656,8 @@ Terima kasih atas kepercayaannya. Semoga ${pasien.namaHewan} lekas pulih!`;
             min-height: 0 !important;
             overflow: visible !important;
           }
-          #inpatient-a4-printable,
-          #inpatient-a4-printable * {
-            visibility: visible !important;
-          }
           #inpatient-a4-printable {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
+            position: relative !important;
             width: 100% !important;
             max-width: 100% !important;
             min-height: 0 !important;

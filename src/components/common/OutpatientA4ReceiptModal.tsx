@@ -635,20 +635,25 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
     }
 
     try {
-      // Find or create hidden iframe for 100% clean isolated print
-      let printFrame = document.getElementById('receipt-print-iframe') as HTMLIFrameElement;
-      if (!printFrame) {
-        printFrame = document.createElement('iframe');
-        printFrame.id = 'receipt-print-iframe';
-        printFrame.style.position = 'fixed';
-        printFrame.style.right = '0';
-        printFrame.style.bottom = '0';
-        printFrame.style.width = '0';
-        printFrame.style.height = '0';
-        printFrame.style.border = '0';
-        printFrame.style.visibility = 'hidden';
-        document.body.appendChild(printFrame);
+      // Clean up any existing iframe to avoid stale styles
+      const oldFrame = document.getElementById('receipt-print-iframe');
+      if (oldFrame) {
+        oldFrame.remove();
       }
+
+      // Create fresh iframe placed safely offscreen with actual dimensions
+      // NOTE: Do NOT use visibility: hidden or width: 0, as Chromium print engine produces a blank white page!
+      const printFrame = document.createElement('iframe');
+      printFrame.id = 'receipt-print-iframe';
+      printFrame.style.position = 'fixed';
+      printFrame.style.left = '-9999px';
+      printFrame.style.top = '-9999px';
+      printFrame.style.width = '210mm';
+      printFrame.style.height = '297mm';
+      printFrame.style.border = '0';
+      printFrame.style.opacity = '0';
+      printFrame.style.pointerEvents = 'none';
+      document.body.appendChild(printFrame);
 
       const frameDoc = printFrame.contentWindow?.document;
       if (!frameDoc) {
@@ -669,6 +674,12 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
             <title>${docTitle}</title>
             ${styleTags}
             <style>
+              /* Guarantee all elements in print iframe are visible and colored */
+              *, *::before, *::after {
+                visibility: visible !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
               @page {
                 size: ${paperSize === 'A4' ? 'A4 portrait' : '215mm 330mm portrait'};
                 margin: 8mm 10mm;
@@ -682,8 +693,6 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
                 height: auto !important;
                 min-height: 0 !important;
                 overflow: visible !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
                 font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
               }
               #outpatient-a4-printable {
@@ -711,6 +720,10 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
               }
+              .no-print, .print\\:hidden {
+                display: none !important;
+                visibility: hidden !important;
+              }
             </style>
           </head>
           <body>
@@ -730,7 +743,7 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
           window.print();
           setTimeout(() => { document.title = prevTitle; }, 500);
         }
-      }, 250);
+      }, 300);
     } catch (err) {
       console.warn('Iframe print error, falling back to direct window.print:', err);
       const prevTitle = document.title;
@@ -1491,13 +1504,10 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
       {/* Print Specific Embedded Styles */}
       <style>{`
         @media print {
-          /* 1. Global hide of everything else in document body */
-          body * {
-            visibility: hidden !important;
-          }
-
-          /* 2. Completely eliminate display of app chrome, sidebars, navbars, and buttons */
+          /* 1. Eliminate display of app chrome, sidebars, navbars, and buttons */
           nav, aside, header, footer,
+          #app-navbar,
+          #app-sidebar,
           .no-print,
           .print\\:hidden,
           .fixed.bottom-0 {
@@ -1505,7 +1515,7 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
             visibility: hidden !important;
           }
 
-          /* 3. Reset modal container so it never clips or creates blank page */
+          /* 2. Reset modal container so it never clips or creates blank page */
           #outpatient-modal-wrapper {
             position: static !important;
             display: block !important;
@@ -1528,21 +1538,12 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
             max-width: none !important;
             height: auto !important;
             max-height: none !important;
-            min-height: 0 !important;
             overflow: visible !important;
           }
 
-          /* 4. Make ONLY outpatient receipt visible */
-          #outpatient-a4-printable,
-          #outpatient-a4-printable * {
-            visibility: visible !important;
-          }
-
-          /* 4. Position printable receipt at absolute top-left of page with zero margin offset */
+          /* 3. Printable receipt container layout */
           #outpatient-a4-printable {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
+            position: relative !important;
             width: 100% !important;
             max-width: 100% !important;
             min-height: 0 !important;
@@ -1554,11 +1555,9 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
             background: #ffffff !important;
             display: block !important;
             overflow: visible !important;
-            page-break-after: avoid !important;
-            break-after: avoid !important;
           }
 
-          /* 5. Table & section pagination behavior */
+          /* 4. Table & section pagination behavior */
           #outpatient-a4-printable table {
             page-break-inside: auto;
             break-inside: auto;
@@ -1579,7 +1578,7 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
             break-inside: avoid !important;
           }
 
-          /* 6. Page setup */
+          /* 5. Page setup */
           @page {
             size: ${paperSize === 'A4' ? 'A4 portrait' : '215mm 330mm portrait'};
             margin: 8mm 10mm 8mm 10mm;

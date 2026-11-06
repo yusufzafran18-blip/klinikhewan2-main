@@ -50,19 +50,24 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
     }
 
     try {
-      let printFrame = document.getElementById('receipt-print-iframe') as HTMLIFrameElement;
-      if (!printFrame) {
-        printFrame = document.createElement('iframe');
-        printFrame.id = 'receipt-print-iframe';
-        printFrame.style.position = 'fixed';
-        printFrame.style.right = '0';
-        printFrame.style.bottom = '0';
-        printFrame.style.width = '0';
-        printFrame.style.height = '0';
-        printFrame.style.border = '0';
-        printFrame.style.visibility = 'hidden';
-        document.body.appendChild(printFrame);
+      // Clean up any stale iframe
+      const oldFrame = document.getElementById('receipt-print-iframe');
+      if (oldFrame) {
+        oldFrame.remove();
       }
+
+      // Create fresh iframe placed offscreen with concrete dimensions
+      const printFrame = document.createElement('iframe');
+      printFrame.id = 'receipt-print-iframe';
+      printFrame.style.position = 'fixed';
+      printFrame.style.left = '-9999px';
+      printFrame.style.top = '-9999px';
+      printFrame.style.width = paperWidth === '58mm' ? '58mm' : '80mm';
+      printFrame.style.height = '300mm';
+      printFrame.style.border = '0';
+      printFrame.style.opacity = '0';
+      printFrame.style.pointerEvents = 'none';
+      document.body.appendChild(printFrame);
 
       const frameDoc = printFrame.contentWindow?.document;
       if (!frameDoc) throw new Error('Frame not accessible');
@@ -80,6 +85,11 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
             <title>${docTitle}</title>
             ${styleTags}
             <style>
+              *, *::before, *::after {
+                visibility: visible !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
               @page {
                 size: ${paperWidth === '58mm' ? '58mm auto' : '80mm auto'};
                 margin: 0;
@@ -93,8 +103,6 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                 height: auto !important;
                 min-height: 0 !important;
                 overflow: visible !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
                 font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
               }
               #thermal-receipt-printable {
@@ -109,6 +117,10 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
                 background: #ffffff !important;
                 display: block !important;
                 overflow: visible !important;
+              }
+              .no-print, .print\\:hidden {
+                display: none !important;
+                visibility: hidden !important;
               }
             </style>
           </head>
@@ -130,7 +142,7 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
           setTimeout(() => { document.title = prevTitle; }, 500);
         }
         setIsPrinting(false);
-      }, 250);
+      }, 300);
     } catch (_) {
       const prevTitle = document.title;
       document.title = docTitle;

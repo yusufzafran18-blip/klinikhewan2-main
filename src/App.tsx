@@ -21,6 +21,7 @@ import { FeedbackView } from './components/views/FeedbackView';
 import { PengaturanView } from './components/views/PengaturanView';
 import { HakAksesView } from './components/views/HakAksesView';
 import { WhatsAppIntegrationView } from './components/views/WhatsAppIntegrationView';
+import { PanduanView } from './components/views/PanduanView';
 import { LoginView } from './components/views/LoginView';
 import { AccessDeniedView } from './components/views/AccessDeniedView';
 import { getModulePermissions } from './utils/rbac';
@@ -1728,6 +1729,14 @@ export function App() {
                     onSaveKlinik={handleSaveKlinik}
                     onSaveSettings={handleSaveSettings}
                     onReloadAllData={loadAllData}
+                  />
+                )}
+
+                {activeTab === 'buku_panduan' && (
+                  <PanduanView
+                    klinik={klinik}
+                    activeUser={activeUser!}
+                    onNavigateTab={setActiveTab}
                   />
                 )}
               </>

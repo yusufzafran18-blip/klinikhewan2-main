@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { User, DataKlinik, Barang } from '../../types';
 import {
   ShieldAlert, UserCheck, Bell, Printer, Stethoscope,
-  ChevronDown, Wifi, RotateCcw, AlertTriangle, Menu, LogOut
+  ChevronDown, Wifi, RotateCcw, AlertTriangle, Menu, LogOut, BookOpen
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -175,6 +175,17 @@ export const Navbar: React.FC<NavbarProps> = ({
               title="Setup Printer Thermal 58/80mm"
             >
               <Printer className="w-5 h-5 text-indigo-600" />
+            </button>
+
+            {/* Buku Panduan Shortcut */}
+            <button
+              id="btn-buku-panduan"
+              onClick={() => onNavigateTab && onNavigateTab('buku_panduan')}
+              className="p-2 rounded-lg text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors hidden sm:flex items-center space-x-1.5 border border-slate-200/80 hover:border-indigo-200 text-xs font-semibold"
+              title="Buka Buku Manual & Panduan Penggunaan"
+            >
+              <BookOpen className="w-4 h-4 text-indigo-600" />
+              <span>Panduan</span>
             </button>
 
             {/* User Profile Dropdown */}

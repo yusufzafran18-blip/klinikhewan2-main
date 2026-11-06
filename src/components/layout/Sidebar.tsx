@@ -5,7 +5,7 @@ import {
   LayoutDashboard, ClipboardList, Users, Stethoscope, BedDouble,
   CalendarDays, ShoppingBag, CreditCard, ShoppingCart, Database,
   FileSpreadsheet, MessageSquare, Settings, FileText, Search, X, ChevronRight,
-  BriefcaseMedical, TrendingUp, Activity, ShieldCheck, LogOut
+  BriefcaseMedical, TrendingUp, Activity, ShieldCheck, LogOut, BookOpen
 } from 'lucide-react';
 
 export type ActiveTab =
@@ -29,7 +29,8 @@ export type ActiveTab =
   | 'laporan_tren_penyakit'
   | 'pengaturan'
   | 'hak_akses'
-  | 'whatsapp';
+  | 'whatsapp'
+  | 'buku_panduan';
 
 interface SidebarProps {
   activeTab: ActiveTab;
@@ -187,6 +188,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           label: 'Pengaturan & Backup',
           icon: Settings,
           roles: ['super_admin', 'admin'],
+        },
+      ],
+    },
+    {
+      groupName: 'Bantuan & Manual',
+      items: [
+        {
+          id: 'buku_panduan',
+          label: 'Buku Manual Penggunaan',
+          icon: BookOpen,
+          roles: ['super_admin', 'admin', 'staf', 'dokter'],
         },
       ],
     },

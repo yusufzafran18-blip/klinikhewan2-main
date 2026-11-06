@@ -93,13 +93,94 @@ export function App() {
   const [activePendaftaranForSOAP, setActivePendaftaranForSOAP] = useState<Pendaftaran | null>(null);
   const [preselectedPasienIdForReg, setPreselectedPasienIdForReg] = useState<string | undefined>(undefined);
 
+  // Helper to reconcile patient queue status with actual clinical and billing status
+  const reconcilePendaftaranStatus = (
+    pendaftarans: Pendaftaran[],
+    inaps: RawatInap[],
+    transaksis: Transaksi[],
+    rms: RekamMedis[]
+  ): { updatedList: Pendaftaran[]; hasChanges: boolean } => {
+    let hasChanges = false;
+    const updatedList = pendaftarans.map((p) => {
+      if (p.status === 'Selesai' || p.status === 'Batal') {
+        return p;
+      }
+
+      const isRawatInap = p.jenisLayanan === 'Rawat Inap' || p.layananDipilih?.toLowerCase().includes('inap') || !!p.rawatInapId;
+
+      if (isRawatInap) {
+        const matchInap = inaps.find((ri) =>
+          (p.rawatInapId && ri.id === p.rawatInapId) ||
+          (ri.pendaftaranId && ri.pendaftaranId === p.id) ||
+          (ri.pasienId === p.pasienId)
+        );
+
+        const hasPaidTrx = transaksis.some((t) =>
+          ((matchInap && t.rawatInapId === matchInap.id) ||
+           (t.pasienId === p.pasienId && t.typeTransaksi === 'Rawat Inap')) &&
+          t.status === 'Lunas'
+        );
+
+        const isPulangOrLunas = matchInap && (
+          matchInap.status === 'Selesai / Pulang' ||
+          matchInap.statusPembayaran === 'Lunas' ||
+          hasPaidTrx
+        );
+
+        if (isPulangOrLunas) {
+          hasChanges = true;
+          return { ...p, status: 'Selesai' as const };
+        }
+      } else {
+        const matchRM = rms.find((rm) =>
+          (rm.pendaftaranId && rm.pendaftaranId === p.id) ||
+          (rm.pasienId === p.pasienId && (!rm.tanggal || !p.tanggal || rm.tanggal === p.tanggal))
+        );
+
+        const hasPaidTrx = transaksis.some((t) =>
+          ((matchRM && t.rekamMedisId === matchRM.id) ||
+           (t.pasienId === p.pasienId && (t.typeTransaksi === 'Rekam Medis' || !t.typeTransaksi))) &&
+          t.status === 'Lunas'
+        );
+
+        const isRMLunas = matchRM && matchRM.statusPembayaran === 'Lunas';
+
+        if (hasPaidTrx || isRMLunas) {
+          hasChanges = true;
+          return { ...p, status: 'Selesai' as const };
+        }
+      }
+
+      return p;
+    });
+
+    return { updatedList, hasChanges };
+  };
+
   // Load All Data on Mount or Reload
   const loadAllData = () => {
-    setPasienList(storageService.getPasienList());
-    setPendaftaranList(storageService.getPendaftaranList());
-    setRekamMedisList(storageService.getRekamMedisList());
-    setRawatInapList(storageService.getRawatInapList());
-    setTransaksiList(storageService.getTransaksiList());
+    const rawPasien = storageService.getPasienList();
+    const rawPendaftaran = storageService.getPendaftaranList();
+    const rawRM = storageService.getRekamMedisList();
+    const rawInap = storageService.getRawatInapList();
+    const rawTrx = storageService.getTransaksiList();
+
+    const { updatedList: reconciledPdfs, hasChanges } = reconcilePendaftaranStatus(
+      rawPendaftaran,
+      rawInap,
+      rawTrx,
+      rawRM
+    );
+
+    if (hasChanges) {
+      storageService.savePendaftaranList(reconciledPdfs).catch(console.error);
+    }
+
+    setPasienList(rawPasien);
+    setPendaftaranList(reconciledPdfs);
+    setRekamMedisList(rawRM);
+    setRawatInapList(rawInap);
+    setTransaksiList(rawTrx);
     setBarangList(storageService.getBarangList());
     setJanjiTemuList(storageService.getJanjiTemuList());
     setSupplierList(storageService.getSupplierList());
@@ -288,10 +369,14 @@ export function App() {
     }
   };
 
-  const handleUpdatePendaftaranStatus = (id: string, status: 'Antri' | 'Diperiksa' | 'Selesai' | 'Batal') => {
+  const handleUpdatePendaftaranStatus = async (id: string, status: 'Antri' | 'Diperiksa' | 'Selesai' | 'Batal') => {
     const updated = pendaftaranList.map((p) => p.id === id ? { ...p, status } : p);
     setPendaftaranList(updated);
-    storageService.savePendaftaranList(updated);
+    try {
+      await storageService.savePendaftaranList(updated);
+    } catch (err: any) {
+      console.error('Failed to update pendaftaran status:', err);
+    }
   };
 
   const handleDeletePendaftaran = async (id: string) => {
@@ -384,6 +469,28 @@ export function App() {
     try {
       await storageService.saveRawatInapList(updated);
       setRawatInapList(updated);
+
+      // If inpatient status is finished / discharged, also synchronize queue status to Selesai
+      if (inap.status === 'Selesai / Pulang') {
+        const currentPdfs = storageService.getPendaftaranList()?.length ? storageService.getPendaftaranList() : pendaftaranList;
+        let pdfUpdated = false;
+        const nextPdfs = currentPdfs.map((p) => {
+          if (p.status === 'Selesai' || p.status === 'Batal') return p;
+          if (
+            p.rawatInapId === inap.id ||
+            (inap.pendaftaranId && p.id === inap.pendaftaranId) ||
+            (p.pasienId === inap.pasienId && (p.jenisLayanan === 'Rawat Inap' || p.layananDipilih?.toLowerCase().includes('inap')))
+          ) {
+            pdfUpdated = true;
+            return { ...p, status: 'Selesai' as const };
+          }
+          return p;
+        });
+        if (pdfUpdated) {
+          setPendaftaranList(nextPdfs);
+          await storageService.savePendaftaranList(nextPdfs);
+        }
+      }
     } catch (error: any) {
       window.alert(`Gagal menyimpan rawat inap ke MySQL: ${error.message}`);
     }
@@ -725,6 +832,26 @@ export function App() {
     }
     setTransaksiList(nextTrx);
     await storageService.saveTransaksiList(nextTrx);
+
+    // Automatically update queue / pendaftaran status to Selesai upon checkout/pulang
+    const currentPdfs = storageService.getPendaftaranList()?.length ? storageService.getPendaftaranList() : pendaftaranList;
+    let pdfUpdated = false;
+    const nextPdfs = currentPdfs.map((p) => {
+      if (p.status === 'Selesai' || p.status === 'Batal') return p;
+      if (
+        p.rawatInapId === inapId ||
+        (target.pendaftaranId && p.id === target.pendaftaranId) ||
+        (p.pasienId === target.pasienId && (p.jenisLayanan === 'Rawat Inap' || p.layananDipilih?.toLowerCase().includes('inap')))
+      ) {
+        pdfUpdated = true;
+        return { ...p, status: 'Selesai' as const };
+      }
+      return p;
+    });
+    if (pdfUpdated) {
+      setPendaftaranList(nextPdfs);
+      await storageService.savePendaftaranList(nextPdfs);
+    }
   };
 
   // Handlers for Janji Temu
@@ -872,6 +999,31 @@ export function App() {
             petugas: activeUser?.nama || 'Petugas Kasir',
           });
         }
+      }
+    }
+
+    // 4. Update matching Pendaftaran in queue to 'Selesai' when payment is complete
+    if (trx.status === 'Lunas' && trx.pasienId) {
+      const matchedRM = trx.rekamMedisId ? rekamMedisList.find((r) => r.id === trx.rekamMedisId) : undefined;
+      const currentPdfs = storageService.getPendaftaranList()?.length ? storageService.getPendaftaranList() : pendaftaranList;
+      let pdfUpdated = false;
+      const nextPdfs = currentPdfs.map((p) => {
+        if (p.status === 'Selesai' || p.status === 'Batal') return p;
+
+        const isTargetPasien = p.pasienId === trx.pasienId;
+        const isTargetInap = trx.rawatInapId && (p.rawatInapId === trx.rawatInapId);
+        const isTargetRM = !!(trx.rekamMedisId && matchedRM && p.id === matchedRM.pendaftaranId);
+
+        if (isTargetInap || isTargetRM || isTargetPasien) {
+          pdfUpdated = true;
+          return { ...p, status: 'Selesai' as const };
+        }
+        return p;
+      });
+
+      if (pdfUpdated) {
+        setPendaftaranList(nextPdfs);
+        await storageService.savePendaftaranList(nextPdfs);
       }
     }
   };
@@ -1306,6 +1458,9 @@ export function App() {
                     pasienList={pasienList}
                     dokterList={dokterList}
                     spesiesList={spesiesList}
+                    rawatInapList={rawatInapList}
+                    transaksiList={transaksiList}
+                    rekamMedisList={rekamMedisList}
                     activeUser={activeUser}
                     permissions={currentTabPerms}
                     onSavePendaftaran={handleSavePendaftaran}

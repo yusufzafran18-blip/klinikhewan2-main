@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Pendaftaran, Pasien, Dokter, User, Spesies, JenisHewan, JenisKelaminHewan, JenisLayananPendaftaran } from '../../types';
+import {
+  Pendaftaran, Pasien, Dokter, User, Spesies, JenisHewan, JenisKelaminHewan, JenisLayananPendaftaran,
+  RawatInap, Transaksi, RekamMedis
+} from '../../types';
 import {
   ClipboardList, Plus, Search, Clock, CheckCircle2, XCircle,
   Stethoscope, Calendar, Phone, User as UserIcon, BedDouble,
@@ -13,6 +16,9 @@ interface PendaftaranViewProps {
   pasienList: Pasien[];
   dokterList: Dokter[];
   spesiesList?: Spesies[];
+  rawatInapList?: RawatInap[];
+  transaksiList?: Transaksi[];
+  rekamMedisList?: RekamMedis[];
   activeUser: User;
   permissions?: {
     canDelete?: boolean;
@@ -22,7 +28,7 @@ interface PendaftaranViewProps {
   };
   onSavePendaftaran: (pdf: Pendaftaran) => void | Promise<void>;
   onSavePasien?: (pasien: Pasien) => void | Promise<void>;
-  onUpdateStatus: (id: string, status: 'Antri' | 'Diperiksa' | 'Selesai' | 'Batal') => void;
+  onUpdateStatus: (id: string, status: 'Antri' | 'Diperiksa' | 'Selesai' | 'Batal') => void | Promise<void>;
   onDeletePendaftaran?: (id: string) => void | Promise<void>;
   onStartExamine: (pendaftaran: Pendaftaran) => void;
   onNavigateToRawatInap?: (inapId?: string) => void;
@@ -36,6 +42,9 @@ export const PendaftaranView: React.FC<PendaftaranViewProps> = ({
   pasienList = [],
   dokterList = [],
   spesiesList = [],
+  rawatInapList = [],
+  transaksiList = [],
+  rekamMedisList = [],
   activeUser,
   permissions,
   onSavePendaftaran,
@@ -100,6 +109,43 @@ export const PendaftaranView: React.FC<PendaftaranViewProps> = ({
       }
     }
   }, [preselectedPasienId, onClearPreselectedPasien]);
+
+  // Auto-sync status: If patient has already checked out / pulang or paid in cashier, automatically ensure status is 'Selesai'
+  useEffect(() => {
+    pendaftaranList.forEach((p) => {
+      if (p.status === 'Selesai' || p.status === 'Batal') return;
+
+      const isRawatInap = p.jenisLayanan === 'Rawat Inap' || p.layananDipilih?.toLowerCase().includes('inap') || !!p.rawatInapId;
+      if (isRawatInap) {
+        const matchInap = (rawatInapList || []).find((ri) =>
+          (p.rawatInapId && ri.id === p.rawatInapId) ||
+          (ri.pendaftaranId && ri.pendaftaranId === p.id) ||
+          (ri.pasienId === p.pasienId)
+        );
+        const hasPaidTrx = (transaksiList || []).some((t) =>
+          ((matchInap && t.rawatInapId === matchInap.id) ||
+           (t.pasienId === p.pasienId && t.typeTransaksi === 'Rawat Inap')) &&
+          t.status === 'Lunas'
+        );
+        if (matchInap && (matchInap.status === 'Selesai / Pulang' || matchInap.statusPembayaran === 'Lunas' || hasPaidTrx)) {
+          onUpdateStatus(p.id, 'Selesai');
+        }
+      } else {
+        const matchRM = (rekamMedisList || []).find((rm) =>
+          (rm.pendaftaranId && rm.pendaftaranId === p.id) ||
+          (rm.pasienId === p.pasienId && (!rm.tanggal || !p.tanggal || rm.tanggal === p.tanggal))
+        );
+        const hasPaidTrx = (transaksiList || []).some((t) =>
+          ((matchRM && t.rekamMedisId === matchRM.id) ||
+           (t.pasienId === p.pasienId && (t.typeTransaksi === 'Rekam Medis' || !t.typeTransaksi))) &&
+          t.status === 'Lunas'
+        );
+        if ((matchRM && matchRM.statusPembayaran === 'Lunas') || hasPaidTrx) {
+          onUpdateStatus(p.id, 'Selesai');
+        }
+      }
+    });
+  }, [pendaftaranList, rawatInapList, transaksiList, rekamMedisList, onUpdateStatus]);
 
   const selectedPasienDetail = pasienList.find((p) => p.id === selectedPasienId);
 
@@ -490,7 +536,26 @@ export const PendaftaranView: React.FC<PendaftaranViewProps> = ({
                 filteredPendaftaran.map((p) => {
                   const pasien = pasienList.find((ps) => ps.id === p.pasienId);
                   const dokter = dokterList.find((d) => d.id === p.dokterId);
-                  const isRawatInap = p.jenisLayanan === 'Rawat Inap' || p.layananDipilih?.toLowerCase().includes('inap');
+                  const isRawatInap = p.jenisLayanan === 'Rawat Inap' || p.layananDipilih?.toLowerCase().includes('inap') || !!p.rawatInapId;
+
+                  // Find related clinical records & transactions
+                  const matchInap = (rawatInapList || []).find((ri) =>
+                    (p.rawatInapId && ri.id === p.rawatInapId) ||
+                    (ri.pendaftaranId && ri.pendaftaranId === p.id) ||
+                    (ri.pasienId === p.pasienId)
+                  );
+                  const matchRM = (rekamMedisList || []).find((rm) =>
+                    (rm.pendaftaranId && rm.pendaftaranId === p.id) ||
+                    (rm.pasienId === p.pasienId && (!rm.tanggal || !p.tanggal || rm.tanggal === p.tanggal))
+                  );
+                  const hasPaidTrx = (transaksiList || []).some((t) =>
+                    ((matchInap && t.rawatInapId === matchInap.id) ||
+                     (matchRM && t.rekamMedisId === matchRM.id) ||
+                     (t.pasienId === p.pasienId && (isRawatInap ? t.typeTransaksi === 'Rawat Inap' : (t.typeTransaksi === 'Rekam Medis' || !t.typeTransaksi)))) &&
+                    t.status === 'Lunas'
+                  );
+                  const isPulang = isRawatInap && matchInap?.status === 'Selesai / Pulang';
+                  const isLunas = hasPaidTrx || (isRawatInap ? matchInap?.statusPembayaran === 'Lunas' : matchRM?.statusPembayaran === 'Lunas');
 
                   return (
                     <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
@@ -561,14 +626,40 @@ export const PendaftaranView: React.FC<PendaftaranViewProps> = ({
                       </td>
 
                       <td className="p-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                          p.status === 'Antri' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
-                          p.status === 'Diperiksa' ? 'bg-blue-100 text-blue-800 border border-blue-200 animate-pulse' :
-                          p.status === 'Selesai' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
-                          'bg-rose-100 text-rose-800 border border-rose-200'
-                        }`}>
-                          {p.status}
-                        </span>
+                        <div className="flex flex-col items-start gap-1">
+                          <div className="relative inline-block">
+                            <select
+                              value={p.status}
+                              onChange={(e) => onUpdateStatus(p.id, e.target.value as any)}
+                              className={`cursor-pointer text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full border transition-all outline-none ${
+                                p.status === 'Antri' ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200' :
+                                p.status === 'Diperiksa' ? 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200 animate-pulse' :
+                                p.status === 'Selesai' ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200' :
+                                'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200'
+                              }`}
+                              title="Klik untuk mengubah status antrian pasien"
+                            >
+                              <option value="Antri">Antri</option>
+                              <option value="Diperiksa">Diperiksa</option>
+                              <option value="Selesai">Selesai</option>
+                              <option value="Batal">Batal</option>
+                            </select>
+                          </div>
+                          {p.status === 'Selesai' && (
+                            <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                              {isPulang && (
+                                <span className="inline-flex items-center text-[9px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded">
+                                  Pulang Inap
+                                </span>
+                              )}
+                              {isLunas && (
+                                <span className="inline-flex items-center text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                  Lunas Kasir
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       <td className="p-4 text-right">
@@ -615,6 +706,18 @@ export const PendaftaranView: React.FC<PendaftaranViewProps> = ({
                             >
                               <BedDouble className="w-3.5 h-3.5" />
                               <span>Monitoring Rawat Inap</span>
+                            </button>
+                          )}
+
+                          {/* Quick Selesai Button */}
+                          {p.status !== 'Selesai' && p.status !== 'Batal' && (
+                            <button
+                              onClick={() => onUpdateStatus(p.id, 'Selesai')}
+                              className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold flex items-center space-x-1 shadow-xs cursor-pointer transition-all"
+                              title="Tandai Status Pasien Selesai"
+                            >
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              <span className="hidden sm:inline">Selesai</span>
                             </button>
                           )}
 

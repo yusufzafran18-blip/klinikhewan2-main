@@ -35,13 +35,111 @@ export const ThermalReceiptModal: React.FC<ThermalReceiptModalProps> = ({
   const handlePrint = () => {
     if (isPrinting) return;
     setIsPrinting(true);
-    const prevTitle = document.title;
-    document.title = `Nota_${transaksi.noNota || 'Kasir'}_${klinik.namaKlinik}`;
-    window.print();
-    setTimeout(() => {
-      document.title = prevTitle;
-      setIsPrinting(false);
-    }, 1000);
+    const docTitle = `Nota_${transaksi.noNota || 'Kasir'}_${klinik.namaKlinik}`;
+    const printableEl = document.getElementById('thermal-receipt-printable');
+
+    if (!printableEl) {
+      const prevTitle = document.title;
+      document.title = docTitle;
+      window.print();
+      setTimeout(() => {
+        document.title = prevTitle;
+        setIsPrinting(false);
+      }, 1000);
+      return;
+    }
+
+    try {
+      let printFrame = document.getElementById('receipt-print-iframe') as HTMLIFrameElement;
+      if (!printFrame) {
+        printFrame = document.createElement('iframe');
+        printFrame.id = 'receipt-print-iframe';
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = '0';
+        printFrame.style.visibility = 'hidden';
+        document.body.appendChild(printFrame);
+      }
+
+      const frameDoc = printFrame.contentWindow?.document;
+      if (!frameDoc) throw new Error('Frame not accessible');
+
+      const styleTags = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+        .map((node) => node.outerHTML)
+        .join('\n');
+
+      frameDoc.open();
+      frameDoc.write(`
+        <!DOCTYPE html>
+        <html lang="id">
+          <head>
+            <meta charset="utf-8" />
+            <title>${docTitle}</title>
+            ${styleTags}
+            <style>
+              @page {
+                size: ${paperWidth === '58mm' ? '58mm auto' : '80mm auto'};
+                margin: 0;
+              }
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                width: ${paperWidth === '58mm' ? '58mm' : '80mm'} !important;
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+              }
+              #thermal-receipt-printable {
+                width: ${paperWidth === '58mm' ? '58mm' : '80mm'} !important;
+                max-width: ${paperWidth === '58mm' ? '58mm' : '80mm'} !important;
+                height: auto !important;
+                min-height: 0 !important;
+                margin: 0 !important;
+                padding: 3mm 2.5mm !important;
+                box-sizing: border-box !important;
+                border: 0 !important;
+                background: #ffffff !important;
+                display: block !important;
+                overflow: visible !important;
+              }
+            </style>
+          </head>
+          <body>
+            ${printableEl.outerHTML}
+          </body>
+        </html>
+      `);
+      frameDoc.close();
+
+      setTimeout(() => {
+        try {
+          printFrame.contentWindow?.focus();
+          printFrame.contentWindow?.print();
+        } catch (_) {
+          const prevTitle = document.title;
+          document.title = docTitle;
+          window.print();
+          setTimeout(() => { document.title = prevTitle; }, 500);
+        }
+        setIsPrinting(false);
+      }, 250);
+    } catch (_) {
+      const prevTitle = document.title;
+      document.title = docTitle;
+      window.print();
+      setTimeout(() => {
+        document.title = prevTitle;
+        setIsPrinting(false);
+      }, 1000);
+    }
   };
 
   const handleSendWA = () => {

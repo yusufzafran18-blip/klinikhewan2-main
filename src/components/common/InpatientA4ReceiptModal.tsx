@@ -562,12 +562,119 @@ export const InpatientA4ReceiptModal: React.FC<InpatientA4ReceiptModalProps> = (
   };
 
   const handlePrint = () => {
-    const prevTitle = document.title;
-    document.title = `Nota_Rawat_Inap_${pasien?.namaHewan || 'Pasien'}_${klinik.namaKlinik}`;
-    window.print();
-    setTimeout(() => {
-      document.title = prevTitle;
-    }, 500);
+    const docTitle = `Nota_Rawat_Inap_${pasien?.namaHewan || 'Pasien'}_${klinik.namaKlinik}`;
+    const printableEl = document.getElementById('inpatient-a4-printable');
+
+    if (!printableEl) {
+      const prevTitle = document.title;
+      document.title = docTitle;
+      window.print();
+      setTimeout(() => { document.title = prevTitle; }, 500);
+      return;
+    }
+
+    try {
+      let printFrame = document.getElementById('receipt-print-iframe') as HTMLIFrameElement;
+      if (!printFrame) {
+        printFrame = document.createElement('iframe');
+        printFrame.id = 'receipt-print-iframe';
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = '0';
+        printFrame.style.visibility = 'hidden';
+        document.body.appendChild(printFrame);
+      }
+
+      const frameDoc = printFrame.contentWindow?.document;
+      if (!frameDoc) {
+        throw new Error('Frame document not accessible');
+      }
+
+      const styleTags = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+        .map((node) => node.outerHTML)
+        .join('\n');
+
+      frameDoc.open();
+      frameDoc.write(`
+        <!DOCTYPE html>
+        <html lang="id">
+          <head>
+            <meta charset="utf-8" />
+            <title>${docTitle}</title>
+            ${styleTags}
+            <style>
+              @page {
+                size: ${paperSize === 'A4' ? 'A4 portrait' : '215mm 330mm portrait'};
+                margin: 8mm 10mm;
+              }
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              }
+              #inpatient-a4-printable {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-height: 0 !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                background: #ffffff !important;
+                display: block !important;
+                overflow: visible !important;
+              }
+              table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+              }
+              tr {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
+              .print-avoid-break {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
+            </style>
+          </head>
+          <body>
+            ${printableEl.outerHTML}
+          </body>
+        </html>
+      `);
+      frameDoc.close();
+
+      setTimeout(() => {
+        try {
+          printFrame.contentWindow?.focus();
+          printFrame.contentWindow?.print();
+        } catch (_) {
+          const prevTitle = document.title;
+          document.title = docTitle;
+          window.print();
+          setTimeout(() => { document.title = prevTitle; }, 500);
+        }
+      }, 250);
+    } catch (err) {
+      console.warn('Iframe print error, falling back to direct window.print:', err);
+      const prevTitle = document.title;
+      document.title = docTitle;
+      window.print();
+      setTimeout(() => { document.title = prevTitle; }, 500);
+    }
   };
 
   const handleSendWA = () => {
@@ -601,13 +708,15 @@ Terima kasih atas kepercayaannya. Semoga ${pasien.namaHewan} lekas pulih!`;
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:p-0 print:bg-white print:static"
+      id="inpatient-modal-wrapper"
+      className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:p-0 print:m-0 print:bg-white print:static print:overflow-visible"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl max-h-[96vh] flex flex-col overflow-hidden print:max-h-none print:h-auto print:border-none print:shadow-none print:rounded-none"
+        id="inpatient-modal-card"
+        className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl max-h-[96vh] flex flex-col overflow-hidden print:max-h-none print:h-auto print:border-none print:shadow-none print:rounded-none print:overflow-visible print:bg-white"
         onClick={(e) => e.stopPropagation()}
       >
         
@@ -1505,10 +1614,33 @@ Terima kasih atas kepercayaannya. Semoga ${pasien.namaHewan} lekas pulih!`;
           nav, aside, header, footer,
           .no-print,
           .print\\:hidden,
-          [class*="backdrop-blur"],
           .fixed.bottom-0 {
             display: none !important;
             visibility: hidden !important;
+          }
+          #inpatient-modal-wrapper {
+            position: static !important;
+            display: block !important;
+            background: transparent !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: visible !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+          #inpatient-modal-card {
+            position: static !important;
+            display: block !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            width: 100% !important;
+            max-width: none !important;
+            height: auto !important;
+            max-height: none !important;
+            min-height: 0 !important;
+            overflow: visible !important;
           }
           #inpatient-a4-printable,
           #inpatient-a4-printable * {

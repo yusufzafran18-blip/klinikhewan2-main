@@ -621,14 +621,123 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
     }
   };
 
-  // Print Handler
+  // Print Handler with Isolated Print Support (Guarantees no blank page and no background leakage)
   const handlePrint = () => {
-    const prevTitle = document.title;
-    document.title = `Nota_Rawat_Jalan_${rekamMedis.noRM}_${pasien?.namaHewan || 'Pasien'}_${normKlinik.namaKlinik}`;
-    window.print();
-    setTimeout(() => {
-      document.title = prevTitle;
-    }, 500);
+    const docTitle = `Nota_Rawat_Jalan_${rekamMedis.noRM}_${pasien?.namaHewan || 'Pasien'}_${normKlinik.namaKlinik}`;
+    const printableEl = document.getElementById('outpatient-a4-printable');
+
+    if (!printableEl) {
+      const prevTitle = document.title;
+      document.title = docTitle;
+      window.print();
+      setTimeout(() => { document.title = prevTitle; }, 500);
+      return;
+    }
+
+    try {
+      // Find or create hidden iframe for 100% clean isolated print
+      let printFrame = document.getElementById('receipt-print-iframe') as HTMLIFrameElement;
+      if (!printFrame) {
+        printFrame = document.createElement('iframe');
+        printFrame.id = 'receipt-print-iframe';
+        printFrame.style.position = 'fixed';
+        printFrame.style.right = '0';
+        printFrame.style.bottom = '0';
+        printFrame.style.width = '0';
+        printFrame.style.height = '0';
+        printFrame.style.border = '0';
+        printFrame.style.visibility = 'hidden';
+        document.body.appendChild(printFrame);
+      }
+
+      const frameDoc = printFrame.contentWindow?.document;
+      if (!frameDoc) {
+        throw new Error('Frame document not accessible');
+      }
+
+      // Collect all stylesheets and Tailwind classes from current document
+      const styleTags = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+        .map((node) => node.outerHTML)
+        .join('\n');
+
+      frameDoc.open();
+      frameDoc.write(`
+        <!DOCTYPE html>
+        <html lang="id">
+          <head>
+            <meta charset="utf-8" />
+            <title>${docTitle}</title>
+            ${styleTags}
+            <style>
+              @page {
+                size: ${paperSize === 'A4' ? 'A4 portrait' : '215mm 330mm portrait'};
+                margin: 8mm 10mm;
+              }
+              html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: visible !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+              }
+              #outpatient-a4-printable {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-height: 0 !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                background: #ffffff !important;
+                display: block !important;
+                overflow: visible !important;
+              }
+              table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+              }
+              tr {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
+              .print-avoid-break {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
+            </style>
+          </head>
+          <body>
+            ${printableEl.outerHTML}
+          </body>
+        </html>
+      `);
+      frameDoc.close();
+
+      setTimeout(() => {
+        try {
+          printFrame.contentWindow?.focus();
+          printFrame.contentWindow?.print();
+        } catch (_) {
+          const prevTitle = document.title;
+          document.title = docTitle;
+          window.print();
+          setTimeout(() => { document.title = prevTitle; }, 500);
+        }
+      }, 250);
+    } catch (err) {
+      console.warn('Iframe print error, falling back to direct window.print:', err);
+      const prevTitle = document.title;
+      document.title = docTitle;
+      window.print();
+      setTimeout(() => { document.title = prevTitle; }, 500);
+    }
   };
 
   // WhatsApp Sender Handler
@@ -665,9 +774,10 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:p-0 print:bg-white print:static">
+    <div id="outpatient-modal-wrapper" className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto print:p-0 print:m-0 print:bg-white print:static print:overflow-visible">
       <div
-        className={`bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-h-[96vh] flex flex-col overflow-hidden print:max-h-none print:h-auto print:border-none print:shadow-none print:rounded-none ${
+        id="outpatient-modal-card"
+        className={`bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-h-[96vh] flex flex-col overflow-hidden print:max-h-none print:h-auto print:border-none print:shadow-none print:rounded-none print:overflow-visible print:bg-white ${
           paperSize === 'A4' ? 'max-w-[860px]' : 'max-w-[900px]'
         }`}
       >
@@ -1386,17 +1496,43 @@ export const OutpatientA4ReceiptModal: React.FC<OutpatientA4ReceiptModalProps> =
             visibility: hidden !important;
           }
 
-          /* 2. Completely eliminate display of app chrome, sidebars, navbars, and background elements */
+          /* 2. Completely eliminate display of app chrome, sidebars, navbars, and buttons */
           nav, aside, header, footer,
           .no-print,
           .print\\:hidden,
-          [class*="backdrop-blur"],
           .fixed.bottom-0 {
             display: none !important;
             visibility: hidden !important;
           }
 
-          /* 3. Make ONLY outpatient receipt visible */
+          /* 3. Reset modal container so it never clips or creates blank page */
+          #outpatient-modal-wrapper {
+            position: static !important;
+            display: block !important;
+            background: transparent !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            overflow: visible !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+
+          #outpatient-modal-card {
+            position: static !important;
+            display: block !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            width: 100% !important;
+            max-width: none !important;
+            height: auto !important;
+            max-height: none !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+          }
+
+          /* 4. Make ONLY outpatient receipt visible */
           #outpatient-a4-printable,
           #outpatient-a4-printable * {
             visibility: visible !important;
